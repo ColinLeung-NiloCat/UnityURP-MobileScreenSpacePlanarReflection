@@ -4,7 +4,7 @@ using UnityEngine.Rendering.Universal;
 
 public class MobileSSPRRendererFeature : ScriptableRendererFeature
 {
-    public static MobileSSPRRendererFeature instance; //for debug
+    public static MobileSSPRRendererFeature instance; //for example scene to call, user should only add 1 MobileSSPRRendererFeature(not > 1)
 
     [System.Serializable]
     public class PassSettings
@@ -12,7 +12,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public float horizontalPlaneHeightWS = 0;
 
         [Range(32, 1080)]
-        public int RT_height = 360;
+        public int RT_height = 512;
 
         public ComputeShader computeShader;
     }
@@ -32,11 +32,17 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             this.settings = settings;
         }
 
+        //RT must be multiply of 32x32 in order to maximize compute shader performance in SM5
         int GetRTWidth()
         {
-            float aspect = (float)Screen.width / (float)Screen.height;
-            return (int)(settings.RT_height * aspect);
+            return (int)Mathf.Ceil((float)settings.RT_height / 32f) * 32;
         }
+        int GetRTHeight()
+        {
+            float aspect = (float)Screen.width / (float)Screen.height;
+            return (int)Mathf.Ceil((float)GetRTWidth() * aspect / 32f) * 32;
+        }
+
         // This method is called before executing the render pass.
         // It can be used to configure render targets and their clear state. Also to create temporary render target textures.
         // When empty this render pass will render to the active camera render target.
@@ -45,7 +51,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
         {
             
-            RenderTextureDescriptor rtd = new RenderTextureDescriptor(GetRTWidth(), settings.RT_height);
+            RenderTextureDescriptor rtd = new RenderTextureDescriptor(GetRTWidth(), GetRTHeight());
             rtd.enableRandomWrite = true;
             rtd.sRGB = false; //don't need gamma correction when sampling these RTs
             rtd.colorFormat = RenderTextureFormat.ARGBFloat; //.a needs float(posWS.y)
@@ -63,7 +69,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             CommandBuffer cb = CommandBufferPool.Get("SSPR");
 
             int dispatchThreadGroupXCount = Mathf.CeilToInt(GetRTWidth() / 32f);
-            int dispatchThreadGroupYCount = Mathf.CeilToInt(settings.RT_height / 32f);
+            int dispatchThreadGroupYCount = Mathf.CeilToInt(GetRTHeight() / 32f);
             int dispatchThreadGroupZCount = 1;
 
             //clear
@@ -72,7 +78,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             cb.DispatchCompute(settings.computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
             //draw
-            cb.SetComputeVectorParam(settings.computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), settings.RT_height));
+            cb.SetComputeVectorParam(settings.computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
             cb.SetComputeFloatParam(settings.computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalPlaneHeightWS);
             cb.SetComputeTextureParam(settings.computeShader, 1, "Result", _SSPR_RT_rti);
             cb.SetComputeTextureParam(settings.computeShader, 1, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
