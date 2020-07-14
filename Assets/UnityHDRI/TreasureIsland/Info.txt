@@ -1,0 +1,35 @@
+Shot name: Treasure Island 1
+Location: Treasure Island - San Francisco
+
+Date: 13/03/2016
+
+Time: 10h15
+
+Weather: Some clouds
+
+
+Range:
+
+Standard capture: 
+9 shots by view
+8 EV (1/4000 - 1/15")
+
+
+Highlight & Sun capture: 
+15 shots by view
+Filter: 1000 + 32 (-15 stops)
+14 EV (1/2000 - 8")
+EV Step: 1
+
+Camera Settings:
+EV Step: 1
+F/8
+ISO 100
+
+Lux: 51000
+
+Luminance on 60 % white patch: 6700
+
+After Processing (With Sun):
+White balanced Lux: 5.205
+Absolute multiplier: 9798.271

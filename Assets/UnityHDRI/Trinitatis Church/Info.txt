@@ -1,0 +1,25 @@
+Shot name: Trinitatis Church
+Location: Copenhagen
+
+Date: 14/01/2016
+
+Time: 10h30
+
+Weather: Church Interior
+
+Range: 12EV (1/1000 - 4")
+13 shots (by view) 
+
+EV Step: 1
+
+Camera Settings:
+F/8
+ISO 100
+
+Lux: 73
+
+Luminance on 60 % white patch: 8,94
+
+After Processing:
+White balanced Lux: 4.192
+Absolute multiplier: 17.4141

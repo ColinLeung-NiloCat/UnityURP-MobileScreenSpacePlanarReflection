@@ -1,0 +1,112 @@
+﻿//simplified mobile implementation of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP
+//http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
+
+//*we don't sample fallback reflection probe here, we sample it at user's shader (e.g. water plane shader)
+
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+//common input
+RWTexture2D<float4> Result;//.a is needs float
+float2 _RTSize;
+//sample settings
+SamplerState PointClampSampler;
+SamplerState LinearClampSampler;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel 0
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel ClearRT
+
+//numthreads x*y*z must = 1024 for maximum performance in SM5
+//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
+[numthreads(32,32,1)]
+void ClearRT(uint3 id : SV_DispatchThreadID)
+{
+	float3 clearColor = float3(0,0,0); //can change to red for easier debug
+	float defaultPosWSY = 99999; //.a is a very high posWS.y as clear value
+    Result[uint2(id.xy)] = float4(clearColor,defaultPosWSY);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel 1
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel RenderSSPRRT
+
+Texture2D<half4> _CameraOpaqueTexture;
+Texture2D<float> _CameraDepthTexture;
+float _HorizontalPlaneHeightWS;
+
+//numthreads x*y*z must = 1024 for maximum performance in SM5
+//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
+[numthreads(32,32,1)]
+void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
+{
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//prepare data
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float2 screenUV = float2(id.x/(_RTSize.x-1),id.y/(_RTSize.y-1)); //[0,RTSize-1] -> [0,1] uv, *not sure -1 is needed or not
+	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//rawDepth(posCS.z) in _CameraDepthTexture
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//convert screenUV & _CameraDepthTexture's rawDepth(posCS.z) to posWS
+	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L75
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float4 posCS = float4(screenUV * 2.0 - 1.0, inputPixelRawDepth, 1.0); //reconstruct posCS using screen uv & rawDepth
+	float4 posHWS = mul(UNITY_MATRIX_I_VP, posCS); //posCS -> posHWS
+	float3 posWS = posHWS.xyz / posHWS.w; //posHWS -> posWS
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//if posWS is already under reflection plane (e.g. under water plane), 
+	//it will never be a correct color to reflect anyway, early exit to prevent wrong result
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	if(posWS.y <= _HorizontalPlaneHeightWS)
+		return;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//reflect posWS according to horizontal reflection plane (e.g. water plane)
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float3 reflectedPosWS = posWS;
+	reflectedPosWS.y -= _HorizontalPlaneHeightWS;
+	reflectedPosWS.y *= -1;//reflect
+	reflectedPosWS.y += _HorizontalPlaneHeightWS;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//find reflected posWS's new screenUV
+	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L87
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float4 reflectedPosCS = mul(UNITY_MATRIX_VP,float4(reflectedPosWS,1));//posWS -> posCS
+	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
+
+	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen uv
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//fix reflected posWS's new screenUV to fill all "holes" caused by missing screen space data
+	//ref: [Filling the gaps] from http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//fix Left Right border missing pixels
+	//TODO:...
+
+	//fix "behind front object occluded missing pixels"
+	//TODO:...
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//write Result[reflectedScreenUV] = inputPixelOpaqueColor in rgb, inputPixelPosWS.y in a
+	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+#if UNITY_UV_STARTS_AT_TOP
+	reflectedScreenUV.y = 1.0 - reflectedScreenUV.y;
+#endif
+	reflectedScreenUV.xy *= _RTSize;//from screen uv[0,1] to [0,RTSize]
+	
+	//because writes to Result RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
+	//here we only allow "closer to plane candidate" to write to Result.
+	//At the end, only the "closest to plane candidate" will remain in Result RT, which is the correct reflection color
+	if(Result[uint2(reflectedScreenUV.xy)].a > posWS.y)
+	{
+		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
+
+		//we write the following data to Result RT:
+		//-rgb = current best reflection color
+		//-a = current cloest rawDepth
+		Result[uint2(reflectedScreenUV.xy)] = float4(inputPixelSceneColor,posWS.y);
+	}
+}

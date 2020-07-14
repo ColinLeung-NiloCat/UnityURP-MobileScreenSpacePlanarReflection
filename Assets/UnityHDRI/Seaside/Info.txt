@@ -1,0 +1,27 @@
+Shot name: Seaside
+Location:  Seaside - North Copenhagen
+
+
+Date: 15/01/2016
+Time: 13h15
+
+Weather: Overcast
+
+Range: 8 EV  (1/4000- 1/15)
+
+9 shots (byview) of 1 EV step
+
+Camera Settings:
+F/8
+ISO 100
+
+Lux: 11800
+
+White patch 60%: 1541 cd
+
+Exposure on the white balanced result: -1EV
+Adjusted for a confortable viewing result.
+
+After Processing:
+White balanced Lux: 1.858
+Absolute multiplier: 6350.915

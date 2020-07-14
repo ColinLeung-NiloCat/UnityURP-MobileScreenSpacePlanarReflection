@@ -1,0 +1,31 @@
+Shot name: Kirby Cove
+Location: Kirby Cove - San Francisco
+
+Date: 14/03/2016
+
+Time: 18h50
+
+Weather: Clear
+
+
+Range:
+
+Standard capture: 
+9 shots by view
+8 EV (1/1000 - 1/4")
+
+
+Highlight & Sun capture: 
+
+Camera Setting:
+EV Step: 1
+F/8
+ISO 100
+
+Lux: 1800
+
+Luminance on 60 % white patch: 580
+
+After Processing:
+White balanced Lux: 3.478
+Absolute multiplier: 517.5388
