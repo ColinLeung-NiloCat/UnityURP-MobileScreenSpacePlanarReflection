@@ -7,7 +7,10 @@
  ![screenshot](https://i.imgur.com/cNaVHLK.png)
  SSPR OFF
  ![screenshot](https://i.imgur.com/0WCIcTM.png)
-
+ SSPR ON
+ ![screenshot](https://i.imgur.com/XvudHkR.png)
+ SSPR OFF
+ ![screenshot](https://i.imgur.com/AZ08hZ8.png)
  Where are the important files?
 -------------------
  There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".
