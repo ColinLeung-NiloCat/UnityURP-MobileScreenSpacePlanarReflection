@@ -19,13 +19,13 @@
  
  How to try this in my own URP project?
  -------------------
- -find 3 important code files inside "Assets\_MobileSSPR\ReusableCore" folder, copy them to your project
- -Add RendererFeature to your renderer
- -assign compute shader to this RendererFeature
- -create a plane in your scene (world space pos y = 0)
- -create a material using MobileSSPRExampleShader
- -put this material to the plane
- -DONE!
+ - find 3 important code files inside "Assets\_MobileSSPR\ReusableCore" folder, copy them to your project
+ - Add RendererFeature to your renderer
+ - assign compute shader to this RendererFeature
+ - create a plane in your scene (world space pos y = 0)
+ - create a material using MobileSSPRExampleShader
+ - put this material to the plane
+ - DONE!
  
  Requirement
  -------------------
