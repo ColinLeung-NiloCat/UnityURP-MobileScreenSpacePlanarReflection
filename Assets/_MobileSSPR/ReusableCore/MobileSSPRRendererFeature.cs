@@ -11,8 +11,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     {
         public bool shouldRenderSSPR = true;
         public float horizontalReflectionPlaneHeightWS = 0;
-        [Range(0.001f,0.5f)]
-        public float fadeOutScreenBorderWidth = 0.25f;
+        [Range(0.01f,1f)]
+        public float fadeOutScreenBorderWidth = 0.5f;
 
         [Range(32, 1080)]
         public int RT_height = 512;
@@ -90,7 +90,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             {
                 cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
-                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), 0.5f - settings.fadeOutScreenBorderWidth);
+                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "ColorRT", _SSPR_ColorRT_rti);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));

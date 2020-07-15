@@ -43,6 +43,6 @@ Material:
     - _Move: 0
     - _NoiseIntensity: -0.0074
     - _SSPR_NoiseIntensity: 0.00625
-    - _UV_MoveSpeed: -0.25
+    - _UV_MoveSpeed: 0
     m_Colors:
     - _BaseColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}

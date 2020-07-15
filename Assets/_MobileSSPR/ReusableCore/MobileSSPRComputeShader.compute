@@ -36,7 +36,7 @@ void ClearRTs(uint3 id : SV_DispatchThreadID)
 Texture2D<half4> _CameraOpaqueTexture;
 Texture2D<float> _CameraDepthTexture;
 float _HorizontalPlaneHeightWS;
-half _FadeOutScreenBorderWidth;
+float _FadeOutScreenBorderWidth; //compute shader can't declare half type float input
 
 //for fadeout SSPR at screen boarder, input is screenUV
 //https://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
@@ -106,23 +106,23 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 #if UNITY_UV_STARTS_AT_TOP
 	reflectedScreenUV.y = 1.0 - reflectedScreenUV.y;
 #endif
-	reflectedScreenUV.xy *= _RTSize;//from screen uv[0,1] to [0,RTSize]
+	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize]
 	
 	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
 	//here we only allow "closer to horizontal reflection plane's candidate" to write to ColorRT & PosWSyRT.
 	//At the end, only the "closest to horizontal reflection plane candidate" will remain in ColorRT & PosWSyRT., which is the correct reflection data
-	if(PosWSyRT[uint2(reflectedScreenUV.xy)] > posWS.y)
+	if(PosWSyRT[reflectedScreenID] > posWS.y)
 	{
 		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
 
 		//smooth fadeout if pixel is near "outside valid color data" area
-		half d = sdBox(screenUV, half2(0.5,0.5));
-		half fadeoutAlpha = smoothstep(0.5, _FadeOutScreenBorderWidth,d); //TODO: expose in C#
+		half d = abs(sdBox(screenUV*2-1, half2(1,1)));
+		half fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth,d);
 
 		//we write the following data to 2 RTs:
 		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage)
 		//-PosWSyRT.r = current lowest PosyWS (concept similar to a regular depth buffer)
-		ColorRT[uint2(reflectedScreenUV.xy)] = half4(inputPixelSceneColor,fadeoutAlpha);
-		PosWSyRT[uint2(reflectedScreenUV.xy)] = posWS.y;
+		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
+		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
 }
