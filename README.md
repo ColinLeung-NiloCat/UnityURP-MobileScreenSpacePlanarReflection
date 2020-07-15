@@ -42,7 +42,7 @@
  Notes
  -------------------
 This is just a quick "proof of concept" project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.  
-But URP has RendererFeature to allow code reuse, so you can try this SSPR in your own URP project very quickly(follow the above " How to try this in my own URP project?" section
+But URP has RendererFeature to allow  render code easily reuse, so you can try this SSPR in your own URP project very quickly(follow the above " How to try this in my own URP project?" section
  
  Editor
  -------------------
