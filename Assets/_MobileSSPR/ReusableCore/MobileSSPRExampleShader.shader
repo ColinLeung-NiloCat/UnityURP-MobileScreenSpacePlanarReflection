@@ -1,4 +1,4 @@
-﻿Shader "MobileSSPR/DebugDrawer"
+﻿Shader "MobileSSPR/ExampleShader"
 {
     Properties
     {

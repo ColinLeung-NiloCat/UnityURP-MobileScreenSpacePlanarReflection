@@ -90,7 +90,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen uv
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//fix reflected posWS's new screenUV to fill all "holes" caused by missing screen space data
+	//fix all "holes" caused by missing screen space data
 	//ref: [Filling the gaps] from http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
