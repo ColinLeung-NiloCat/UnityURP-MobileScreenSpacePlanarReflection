@@ -95,7 +95,7 @@ Shader "MobileSSPR/ExampleShader"
                 SSPRResult = SAMPLE_TEXTURE2D(_MobileSSPR_ColorRT,LinearClampSampler, screenUV + (noise*2-1)* _SSPR_NoiseIntensity); //use LinearClampSampler to make it blurry
 #endif
                 //final reflection
-                half3 finalReflection = lerp(reflectionProbeResult,SSPRResult.rgb,SSPRResult.a);//combine reflection probe and SSPR
+                half3 finalReflection = lerp(reflectionProbeResult,SSPRResult.rgb,SSPRResult.a * _BaseColor.a);//combine reflection probe and SSPR
                 
                 //show reflection area
                 half reflectionArea = tex2D(_ReflectionAreaTex,IN.uv);

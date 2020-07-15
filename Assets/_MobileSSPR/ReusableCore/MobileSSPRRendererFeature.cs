@@ -98,7 +98,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             {
                 cb.DisableShaderKeyword("_MobileSSPR");
             }
-            //fix RT (kernel #1)
+            //fill RT (kernel #1)
             if(settings.shouldFillMissingColorInfo)
             {
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "ColorRT", _SSPR_ColorRT_rti);
