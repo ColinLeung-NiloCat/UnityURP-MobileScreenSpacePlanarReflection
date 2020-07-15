@@ -26,6 +26,7 @@ Shader "MobileSSPR/ExampleShader"
             #pragma vertex vert
             #pragma fragment frag
             
+            #pragma multi_compile _ _MobileSSPR
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -86,11 +87,13 @@ Shader "MobileSSPR/ExampleShader"
                 //call this function in Lighting.hlsl-> half3 GlossyEnvironmentReflection(half3 reflectVector, half perceptualRoughness, half occlusion)
                 half3 reflectionProbeResult = GlossyEnvironmentReflection(reflectDirWS,_Roughness,1);               
 
+                half4 SSPRResult = 0;
+#if _MobileSSPR
                 //our screen space reflection
                 half2 noise = tex2D(_SSPR_UVNoiseTex, IN.uv);
                 half2 screenUV = IN.screenPos.xy/IN.screenPos.w;
-                half4 SSPRResult = SAMPLE_TEXTURE2D(_MobileSSPR_ColorRT,LinearClampSampler, screenUV + (noise*2-1)* _SSPR_NoiseIntensity); //use LinearClampSampler to make it blurry
-
+                SSPRResult = SAMPLE_TEXTURE2D(_MobileSSPR_ColorRT,LinearClampSampler, screenUV + (noise*2-1)* _SSPR_NoiseIntensity); //use LinearClampSampler to make it blurry
+#endif
                 //final reflection
                 half3 finalReflection = lerp(reflectionProbeResult,SSPRResult.rgb,SSPRResult.a);//combine reflection probe and SSPR
                 

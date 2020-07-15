@@ -92,6 +92,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                cb.EnableShaderKeyword("_MobileSSPR");
+            }
+            else
+            {
+                cb.DisableShaderKeyword("_MobileSSPR");
             }
             //fix RT (kernel #1)
             if(settings.shouldFillMissingColorInfo)
