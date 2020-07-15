@@ -8,7 +8,7 @@ Shader "MobileSSPR/ExampleShader"
 
         _Roughness("_Roughness", range(0,1)) = 0.25 
         _SSPR_UVNoiseTex("_SSPR_UVNoiseTex", 2D) = "gray" {}
-        _SSPR_NoiseIntensity("_SSPR_NoiseIntensity", range(-0.05,0.05)) = 0.02
+        _SSPR_NoiseIntensity("_SSPR_NoiseIntensity", range(-0.05,0.05)) = 0.0
 
         _UV_MoveSpeed("_UV_MoveSpeed (xy only)(for things like water flow)", Vector) = (0,0,0,0)
 
