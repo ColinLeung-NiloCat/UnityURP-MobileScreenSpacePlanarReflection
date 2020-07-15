@@ -31,16 +31,18 @@
  - set horizontalReflectionPlaneHeightWS to 0.01 in this new RendererFeature
  - create a new plane game object in your scene (set world space pos y = 0.01)
  - create a material using MobileSSPRExampleShader
- - put this material to the plane
- - DONE!
+ - assign this material to your new plane
+ - DONE! You should see correct reflection both in scene and game window
 
  I can see some strength white/gray areas in reflection
  -------------------
- It is an expected artifact of screen space reflection, currently looking for a fast enough mobile solution to solve it.
+ It is an expected artifact of screen space reflection, currently I am looking for a fast enough mobile solution to solve it.
+ - see this for more detail: http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  
  Notes
  -------------------
- It is just a quick proof of concept project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.
+This is just a quick "proof of concept" project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.  
+But URP has RendererFeature to allow code reuse, so you can try this SSPR in your own URP project very quickly(follow the above " How to try this in my own URP project?" section
  
  Editor
  -------------------
