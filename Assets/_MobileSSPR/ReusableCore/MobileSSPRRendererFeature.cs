@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
@@ -11,12 +11,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     {
         public bool shouldRenderSSPR = true;
         public bool shouldFillMissingColorInfo = false;
-        public float horizontalReflectionPlaneHeightWS = 0;
+        public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit
         [Range(0.01f,1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
 
-        [Range(32, 1080)]
-        public int RT_height = 512;
+        [Range(32, 1024)]
+        public int RT_height = 1024;
 
         public ComputeShader SSPR_computeShader;
     }
@@ -60,8 +60,9 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             rtd.enableRandomWrite = true; //using RWTexture2D in compute shader need to turn on this
             rtd.sRGB = false; //don't need gamma correction when sampling these RTs, it is linear data already because it will be filled by screen's linear data
             rtd.colorFormat = cameraTextureDescriptor.colorFormat;
-            
+
             //color RT
+            rtd.colorFormat = RenderTextureFormat.ARGB32; //we need alpha!
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
