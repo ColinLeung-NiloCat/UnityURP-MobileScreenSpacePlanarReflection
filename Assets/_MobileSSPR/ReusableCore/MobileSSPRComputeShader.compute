@@ -2,30 +2,32 @@
 //http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 
 //*we don't sample fallback reflection probe here, we sample it at user's shader (e.g. water plane shader)
+//because Lighting data like reflection probe is only correct in renderer
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-//common input
-RWTexture2D<float4> Result;//.a is needs float
+//common input from RendererFeature
+RWTexture2D<half4> ColorRT;
+RWTexture2D<float> PosWSyRT;
 float2 _RTSize;
-//sample settings
+//common sample settings
 SamplerState PointClampSampler;
 SamplerState LinearClampSampler;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel 0
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel ClearRT
+#pragma kernel ClearRTs
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(32,32,1)]
-void ClearRT(uint3 id : SV_DispatchThreadID)
+void ClearRTs(uint3 id : SV_DispatchThreadID)
 {
-	float3 clearColor = float3(0,0,0); //can change to red for easier debug
-	float defaultPosWSY = 99999; //.a is a very high posWS.y as clear value
-    Result[uint2(id.xy)] = float4(clearColor,defaultPosWSY);
+    ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0, will show nothing if no valid SSPR pixels found    
+    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel 1
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,6 +36,13 @@ void ClearRT(uint3 id : SV_DispatchThreadID)
 Texture2D<half4> _CameraOpaqueTexture;
 Texture2D<float> _CameraDepthTexture;
 float _HorizontalPlaneHeightWS;
+
+//https://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+half sdBox(half2 p, half2 b)
+{
+    half2 d = abs(p)-b;
+    return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+}
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
@@ -56,7 +65,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//if posWS is already under reflection plane (e.g. under water plane), 
-	//it will never be a correct color to reflect anyway, early exit to prevent wrong result
+	//it will never be a correct color to reflect anyway, early exit to prevent wrong ColorRT
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	if(posWS.y <= _HorizontalPlaneHeightWS)
 		return;
@@ -89,7 +98,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	//TODO:...
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//write Result[reflectedScreenUV] = inputPixelOpaqueColor in rgb, inputPixelPosWS.y in a
+	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, inputPixelPosWS.y in a
 	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 #if UNITY_UV_STARTS_AT_TOP
@@ -97,16 +106,22 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 #endif
 	reflectedScreenUV.xy *= _RTSize;//from screen uv[0,1] to [0,RTSize]
 	
-	//because writes to Result RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
-	//here we only allow "closer to plane candidate" to write to Result.
-	//At the end, only the "closest to plane candidate" will remain in Result RT, which is the correct reflection color
-	if(Result[uint2(reflectedScreenUV.xy)].a > posWS.y)
+	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
+	//here we only allow "closer to plane candidate" to write to ColorRT.
+	//At the end, only the "closest to plane candidate" will remain in ColorRT RT, which is the correct reflection color
+	if(PosWSyRT[uint2(reflectedScreenUV.xy)] > posWS.y)
 	{
 		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
 
-		//we write the following data to Result RT:
-		//-rgb = current best reflection color
-		//-a = current cloest rawDepth
-		Result[uint2(reflectedScreenUV.xy)] = float4(inputPixelSceneColor,posWS.y);
+		//fadeout near out of valid color range areas
+		half d = sdBox(screenUV, half2(0.5,0.5));
+		half fadeoutAlpha = smoothstep(0.5,0.4,d); //TODO: expose in C#
+
+		//we write the following data to ColorRT RT:
+		//-ColorRT.rgba = current best reflection color and alpha
+		//-PosWSyRT.r = current lowest PosyWS (like a depth buffer)
+
+		ColorRT[uint2(reflectedScreenUV.xy)] = half4(inputPixelSceneColor,fadeoutAlpha);
+		PosWSyRT[uint2(reflectedScreenUV.xy)] = posWS.y;
 	}
 }

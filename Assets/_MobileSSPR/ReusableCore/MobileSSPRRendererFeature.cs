@@ -21,8 +21,10 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     public class CustomRenderPass : ScriptableRenderPass
     {
 
-        static readonly int _SSPR_RT_pid = Shader.PropertyToID("_MobileSSPR_RT");
-        RenderTargetIdentifier _SSPR_RT_rti = new RenderTargetIdentifier(_SSPR_RT_pid);
+        static readonly int _SSPR_ColorRT_pid = Shader.PropertyToID("_MobileSSPR_ColorRT");
+        static readonly int _SSPR_PosWSyRT_pid = Shader.PropertyToID("_MobileSSPR_PosWSyRTRT");
+        RenderTargetIdentifier _SSPR_ColorRT_rti = new RenderTargetIdentifier(_SSPR_ColorRT_pid);
+        RenderTargetIdentifier _SSPR_PosWSyRT_rti = new RenderTargetIdentifier(_SSPR_PosWSyRT_pid);
         ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");
 
         public PassSettings settings;
@@ -54,9 +56,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             RenderTextureDescriptor rtd = new RenderTextureDescriptor(GetRTWidth(), GetRTHeight());
             rtd.enableRandomWrite = true;
             rtd.sRGB = false; //don't need gamma correction when sampling these RTs
-            rtd.colorFormat = RenderTextureFormat.ARGBFloat; //.a needs float(posWS.y)
+            rtd.colorFormat = RenderTextureFormat.ARGB32;
             
-            cmd.GetTemporaryRT(_SSPR_RT_pid, rtd);
+            cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
+
+            rtd.colorFormat = RenderTextureFormat.RFloat;
+            cmd.GetTemporaryRT(_SSPR_PosWSyRT_pid, rtd);
         }
 
         // Here you can implement the rendering logic.
@@ -72,21 +77,22 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             int dispatchThreadGroupYCount = Mathf.CeilToInt(GetRTHeight() / 32f);
             int dispatchThreadGroupZCount = 1;
 
-            //clear
-            cb.SetComputeTextureParam(settings.computeShader, 0, "Result", _SSPR_RT_rti);
-            //cb.SetComputeTextureParam(settings.computeShader,0,"_SkyBox", RenderSettings.sky);
+            //clear colorRT
+            cb.SetComputeTextureParam(settings.computeShader, 0, "ColorRT", _SSPR_ColorRT_rti);
+            cb.SetComputeTextureParam(settings.computeShader, 0, "PosWSyRT", _SSPR_PosWSyRT_rti);
             cb.DispatchCompute(settings.computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
-            //draw
+            //draw RT
             cb.SetComputeVectorParam(settings.computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
             cb.SetComputeFloatParam(settings.computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalPlaneHeightWS);
-            cb.SetComputeTextureParam(settings.computeShader, 1, "Result", _SSPR_RT_rti);
+            cb.SetComputeTextureParam(settings.computeShader, 1, "ColorRT", _SSPR_ColorRT_rti);
+            cb.SetComputeTextureParam(settings.computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
             cb.SetComputeTextureParam(settings.computeShader, 1, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
             cb.SetComputeTextureParam(settings.computeShader, 1, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
             cb.DispatchCompute(settings.computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
  
             //set global RT
-            cb.SetGlobalTexture(_SSPR_RT_pid, _SSPR_RT_rti);
+            cb.SetGlobalTexture(_SSPR_ColorRT_pid, _SSPR_ColorRT_rti);
 
             context.ExecuteCommandBuffer(cb);
             CommandBufferPool.Release(cb);
@@ -101,7 +107,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         /// Cleanup any allocated resources that were created during the execution of this render pass.
         public override void FrameCleanup(CommandBuffer cmd)
         {
-            cmd.ReleaseTemporaryRT(_SSPR_RT_pid);
+            cmd.ReleaseTemporaryRT(_SSPR_ColorRT_pid);
         }
     }
 
