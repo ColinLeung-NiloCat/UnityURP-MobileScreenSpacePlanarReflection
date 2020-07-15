@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: MobileSSPR_ExampleForwardRenderer
   m_EditorClassIdentifier: 
   m_RendererFeatures:
-  - {fileID: 956188861265913326}
-  m_RendererFeatureMap: eea5f005b410450d
+  - {fileID: 5980099208643573038}
+  m_RendererFeatureMap: 2e75cbdc8b94fd52
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   shaders:
     blitPS: {fileID: 4800000, guid: c17132b1f77d20942aa75f8429c0f8bc, type: 3}
@@ -37,7 +37,7 @@ MonoBehaviour:
     failOperation: 0
     zFailOperation: 0
   m_ShadowTransparentReceive: 1
---- !u!114 &956188861265913326
+--- !u!114 &5980099208643573038
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -47,10 +47,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aaad5c85f2c809042933d794a0ae6d8c, type: 3}
-  m_Name: NewMobileTestComputeShader
+  m_Name: NewMobileSSPRRendererFeature
   m_EditorClassIdentifier: 
   m_Active: 1
   Settings:
-    horizontalPlaneHeightWS: 0
+    shouldRenderSSPR: 1
+    horizontalReflectionPlaneHeightWS: 0
+    fadeOutScreenBorderWidth: 0.25
     RT_height: 512
-    computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3, type: 3}
+    SSPR_computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3,
+      type: 3}
