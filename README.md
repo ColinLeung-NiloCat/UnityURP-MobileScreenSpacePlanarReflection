@@ -28,7 +28,8 @@
  - turn on "Opaque Texture" in your project's URP's setting
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
  - assign MobileSSPRComputeShader to this new RendererFeature's "compute shader" slot
- - create a new plane game object in your scene (set world space pos y = 0)
+ - set horizontalReflectionPlaneHeightWS to 0.01 in this new RendererFeature
+ - create a new plane game object in your scene (set world space pos y = 0.01)
  - create a material using MobileSSPRExampleShader
  - put this material to the plane
  - DONE!
