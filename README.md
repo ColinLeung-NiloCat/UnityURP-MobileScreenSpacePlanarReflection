@@ -32,6 +32,10 @@
  - put this material to the plane
  - DONE!
 
+ I can see some strength white/gray areas in reflection
+ -------------------
+ It is an expected artifact of screen space reflection, currently looking for a fast enough mobile solution to solve it.
+ 
  Notes
  -------------------
  It is just a quick proof of concept project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.
