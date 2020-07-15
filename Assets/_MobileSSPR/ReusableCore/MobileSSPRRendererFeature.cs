@@ -10,7 +10,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     public class PassSettings
     {
         public bool shouldRenderSSPR = true;
-        public bool shouldBlurResult = true;
+        public bool shouldFillMissingColorInfo = false;
         public float horizontalReflectionPlaneHeightWS = 0;
         [Range(0.01f,1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
@@ -81,27 +81,24 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             int dispatchThreadGroupYCount = Mathf.CeilToInt(GetRTHeight() / 32f);
             int dispatchThreadGroupZCount = 1;
 
-            //clear colorRT (kernel #0)
-            cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "ColorRT", _SSPR_ColorRT_rti); //clear to (0,0,0,0)
-            cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "PosWSyRT", _SSPR_PosWSyRT_rti); //clear to a very high posWS.y
-            cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-
-            //draw RT (kernel #1)
+            //draw RT (kernel #0)
             if(settings.shouldRenderSSPR)
             {
                 cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "ColorRT", _SSPR_ColorRT_rti);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+            }
+            //fix RT (kernel #1)
+            if(settings.shouldFillMissingColorInfo)
+            {
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "ColorRT", _SSPR_ColorRT_rti);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-            }
-            if(settings.shouldBlurResult)
-            {
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
-                cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
             }
 
             //set global RT, for regular renderer's shader to sample reflection result RT (_MobileSSPR_ColorRT)

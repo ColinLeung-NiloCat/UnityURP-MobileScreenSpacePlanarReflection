@@ -17,20 +17,6 @@ SamplerState LinearClampSampler;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel 0
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel ClearRTs
-
-//numthreads x*y*z must = 1024 for maximum performance in SM5
-//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32,32,1)]
-void ClearRTs(uint3 id : SV_DispatchThreadID)
-{
-    ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means reflection plane will not use SSRP's result, if no valid SSPR pixels found    
-    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel 1
-////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel RenderSSPRRT
 
 Texture2D<half4> _CameraOpaqueTexture;
@@ -51,6 +37,9 @@ half sdBox(half2 p, half2 b)
 [numthreads(32,32,1)]
 void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 {
+    ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means reflection plane will not use SSRP's result, if no valid SSPR pixels found    
+    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//prepare data
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,15 +79,6 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen uv
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//fix all "holes" caused by missing screen space data
-	//ref: [Filling the gaps] from http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-		//fix "behind front object occluded missing pixels"
-		//see -> Low Complexity, High Fidelity: The Rendering of INSIDE https://youtu.be/RdN06E6Xn9E?t=2385
-		//TODO:...
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, usage in a
 	//write PosWSyRT[reflectedScreenUV] = inputPixelPosWS.y
 	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
@@ -111,7 +91,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
 	//here we only allow "closer to horizontal reflection plane's candidate" to write to ColorRT & PosWSyRT.
 	//At the end, only the "closest to horizontal reflection plane candidate" will remain in ColorRT & PosWSyRT., which is the correct reflection data
-	if(PosWSyRT[reflectedScreenID] > posWS.y)
+	if(posWS.y < PosWSyRT[reflectedScreenID])
 	{
 		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
 
@@ -120,34 +100,32 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 		half fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth,d);
 
 		//we write the following data to 2 RTs:
-		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage)
+		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage %)
 		//-PosWSyRT.r = current lowest PosyWS (concept similar to a regular depth buffer)
 		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel 2
+// kernel 1
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel BlurRT
+#pragma kernel FillMissingColorInfo
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32, 1, 1)]
-void BlurRT(uint3 id : SV_DispatchThreadID)
+[numthreads(32, 32, 1)]
+void FillMissingColorInfo(uint3 id : SV_DispatchThreadID)
 {
-	return;
-	
-	uint2 startID = id;
-	startID.y *= 16;
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//fix all "holes" caused by missing screen space data
+	//ref: [Filling the gaps] from http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	int corectionVerticalSize = 16;
-	for (int i = 0; i < corectionVerticalSize-1; i++)
-	{
-		uint2 upLocation = startID + uint2(0, -i);
-		uint2 downLocation = startID + uint2(0, -i-1);
-		half4 upColor = ColorRT[upLocation];
-		half4 downColor = ColorRT[downLocation];
-		ColorRT[downLocation] = lerp(upColor,downColor,downColor.a);
-	} 
+		//fix "behind front object occluded missing pixels"
+		//see -> Low Complexity, High Fidelity: The Rendering of INSIDE https://youtu.be/RdN06E6Xn9E?t=2385
+		//TODO:...
+
+	//temp code
+	if(PosWSyRT[id.xy] > 9000)
+		ColorRT[id.xy] = half4(1,0,0,1);
 }
