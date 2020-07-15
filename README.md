@@ -20,21 +20,21 @@
  How to try this in my own URP project?
  -------------------
  - find 3 important code files inside "Assets \ _MobileSSPR \ ReusableCore" folder, copy them to your project
- - Add RendererFeature to your renderer
- - assign compute shader to this RendererFeature
- - create a plane in your scene (world space pos y = 0)
+ - Add MobileSSPRRendererFeature(RendererFeature) to your renderer
+ - assign MobileSSPRComputeShader to this new RendererFeature's compute shader slot
+ - create a new plane game object in your scene (world space pos y = 0)
  - create a material using MobileSSPRExampleShader
  - put this material to the plane
  - DONE!
  
  Requirement
  -------------------
- -need _CameraDepthTexture
- -need _CameraOpaqueTexture
+ - need _CameraDepthTexture
+ - need _CameraOpaqueTexture
  
  Notes
  -------------------
- It is just a proof of concept project to test if screen space method & compute shader can run on mobile of not.
+ It is just a quick proof of concept project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.
  
  Editor
  -------------------
