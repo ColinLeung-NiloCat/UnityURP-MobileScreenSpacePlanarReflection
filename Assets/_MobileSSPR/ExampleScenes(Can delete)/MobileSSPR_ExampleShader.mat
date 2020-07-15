@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: MobileSSPRDebugDrawerShader
+  m_Name: MobileSSPR_ExampleShader
   m_Shader: {fileID: 4800000, guid: 7a8ddc621c198964f96dd79f9497122e, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
@@ -42,7 +42,9 @@ Material:
     m_Floats:
     - _Move: 0
     - _NoiseIntensity: -0.0074
+    - _Roughness: 0.25
     - _SSPR_NoiseIntensity: 0.00625
     - _UV_MoveSpeed: 0
     m_Colors:
     - _BaseColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _UV_MoveSpeed: {r: 0, g: 0, b: 0, a: 0}
