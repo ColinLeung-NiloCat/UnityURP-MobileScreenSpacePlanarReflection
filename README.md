@@ -19,4 +19,16 @@
  -------------------
  see 3 important code files inside "Assets\_MobileSSPR\ReusableCore" folder, copy them to your project
  
+ Notes
+ -------------------
+ It is just a proof of concept project to test if screen space method & compute shader can run on mobile of not.
+ 
+ Editor
+ -------------------
+2019.4.3f1 LTS
+
+Implementation reference
+-------------------
+http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
+ 
  
