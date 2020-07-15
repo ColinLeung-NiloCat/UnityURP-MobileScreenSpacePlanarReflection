@@ -22,9 +22,9 @@
  
  How to try this in my own URP project?
  -------------------
- - find 3 important code files inside "Assets \ _MobileSSPR \ ReusableCore" folder, copy them to your project
- - turn on "Depth Texture" in URP's setting
- - turn on "Opaque Texture" in URP's setting
+ - copy "Assets \ _MobileSSPR \ ReusableCore" folder to your project (contains 3 important code files)
+ - turn on "Depth Texture" in your project's URP's setting
+ - turn on "Opaque Texture" in your project's URP's setting
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
  - assign MobileSSPRComputeShader to this new RendererFeature's "compute shader" slot
  - create a new plane game object in your scene (set world space pos y = 0)
