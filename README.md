@@ -20,18 +20,15 @@
  How to try this in my own URP project?
  -------------------
  - find 3 important code files inside "Assets \ _MobileSSPR \ ReusableCore" folder, copy them to your project
- - Add MobileSSPRRendererFeature(RendererFeature) to your renderer
- - assign MobileSSPRComputeShader to this new RendererFeature's compute shader slot
- - create a new plane game object in your scene (world space pos y = 0)
+ - turn on "Depth Texture" in URP's setting
+ - turn on "Opaque Texture" in URP's setting
+ - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
+ - assign MobileSSPRComputeShader to this new RendererFeature's "compute shader" slot
+ - create a new plane game object in your scene (set world space pos y = 0)
  - create a material using MobileSSPRExampleShader
  - put this material to the plane
  - DONE!
- 
- Requirement
- -------------------
- - need _CameraDepthTexture
- - need _CameraOpaqueTexture
- 
+
  Notes
  -------------------
  It is just a quick proof of concept project to test if screen space reflection & compute shader can run on mobile correctly and fast enough.
