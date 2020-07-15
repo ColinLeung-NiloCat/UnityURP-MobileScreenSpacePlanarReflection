@@ -1,10 +1,10 @@
-﻿//just a simple shader to show how to use SSPR's result texture
+//just a simple shader to show how to use SSPR's result texture
 Shader "MobileSSPR/ExampleShader"
 {
     Properties
     {
         [MainColor] _BaseColor("BaseColor", Color) = (1,1,1,1)
-        [MainTexture] _BaseMap("BaseMap", 2D) = "white" {}
+        [MainTexture] _BaseMap("BaseMap", 2D) = "black" {}
 
         _Roughness("_Roughness", range(0,1)) = 0.25 
         _SSPR_UVNoiseTex("_SSPR_UVNoiseTex", 2D) = "gray" {}
@@ -12,7 +12,7 @@ Shader "MobileSSPR/ExampleShader"
 
         _UV_MoveSpeed("_UV_MoveSpeed (xy only)(for things like water flow)", Vector) = (0,0,0,0)
 
-        _ReflectionAreaTex("_ReflectionArea", 2D) = "gray" {}
+        _ReflectionAreaTex("_ReflectionArea", 2D) = "white" {}
     }
 
     SubShader
