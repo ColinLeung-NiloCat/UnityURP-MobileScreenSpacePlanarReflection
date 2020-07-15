@@ -15,9 +15,20 @@
 -------------------
  Test on ~10 android devices, should we alright if your android device support OpenGLES3.2 / Vulkan.
  
- How to use try this in my own URP project?
+ How to try this in my own URP project?
  -------------------
- see 3 important code files inside "Assets\_MobileSSPR\ReusableCore" folder, copy them to your project
+ -find 3 important code files inside "Assets\_MobileSSPR\ReusableCore" folder, copy them to your project
+ -Add RendererFeature to your renderer
+ -assign compute shader to this RendererFeature
+ -create a plane in your scene (world space pos y = 0)
+ -create a material using MobileSSPRExampleShader
+ -put this material to the plane
+ -DONE!
+ 
+ Requirement
+ -------------------
+ -need _CameraDepthTexture
+ -need _CameraOpaqueTexture
  
  Notes
  -------------------
