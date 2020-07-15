@@ -126,3 +126,28 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel 2
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel BlurRT
+
+//numthreads x*y*z must = 1024 for maximum performance in SM5
+//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
+[numthreads(32, 1, 1)]
+void BlurRT(uint3 id : SV_DispatchThreadID)
+{
+	return;
+	
+	uint2 startID = id;
+	startID.y *= 16;
+
+	int corectionVerticalSize = 16;
+	for (int i = 0; i < corectionVerticalSize-1; i++)
+	{
+		uint2 upLocation = startID + uint2(0, -i);
+		uint2 downLocation = startID + uint2(0, -i-1);
+		half4 upColor = ColorRT[upLocation];
+		half4 downColor = ColorRT[downLocation];
+		ColorRT[downLocation] = lerp(upColor,downColor,downColor.a);
+	} 
+}

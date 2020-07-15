@@ -10,6 +10,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     public class PassSettings
     {
         public bool shouldRenderSSPR = true;
+        public bool shouldBlurResult = true;
         public float horizontalReflectionPlaneHeightWS = 0;
         [Range(0.01f,1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
@@ -38,14 +39,14 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
         //RT must be multiply of 32x32 = 1024 in order to maximize compute shader performance in SM5
         //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-        int GetRTWidth()
+        int GetRTHeight()
         {
             return Mathf.CeilToInt(settings.RT_height / 32f) * 32;
         }
-        int GetRTHeight()
+        int GetRTWidth()
         {
             float aspect = (float)Screen.width / Screen.height;
-            return Mathf.CeilToInt(GetRTWidth() * aspect / 32f) * 32;
+            return Mathf.CeilToInt(GetRTHeight() * aspect / 32f) * 32;
         }
 
         // This method is called before executing the render pass.
@@ -96,6 +97,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+            }
+            if(settings.shouldBlurResult)
+            {
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
+                cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
             }
 
             //set global RT, for regular renderer's shader to sample reflection result RT (_MobileSSPR_ColorRT)

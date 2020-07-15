@@ -18,7 +18,7 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
 
         //show slider to control SSPR ColorRT size
         GUI.Label(new Rect(200, 25, 200, 200), $"SSPR_ColorRT height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");
-        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(400, 25, 200, 200), MobileSSPRRendererFeature.instance.Settings.RT_height, 32,640));
+        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(400, 25, 200, 200), MobileSSPRRendererFeature.instance.Settings.RT_height, 32,1080));
 
         //view SSPR's result using different skyboxs
         if (GUI.Button(new Rect(25, 200, 100, 100), "SwitchSkyBox"))
