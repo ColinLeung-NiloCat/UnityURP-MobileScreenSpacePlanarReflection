@@ -19,7 +19,7 @@
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, should we alright if your android device support OpenGLES3.2 / Vulkan.
+ Tested on ~10 android devices, should be alright if your android device support OpenGLES3.2 / Vulkan.
  
  How to try this in my own URP project?
  -------------------
