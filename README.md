@@ -52,5 +52,10 @@ Implementation reference
 -------------------
 - http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
+
+TODO
+----------------
+- fix reflection result's holes (http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf)
+- make a new .hlsl to allow user apply this SSPR's result to their custom shader using 2 lines of code 
  
  
