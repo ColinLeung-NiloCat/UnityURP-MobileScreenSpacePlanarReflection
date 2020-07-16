@@ -79,6 +79,10 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float4 reflectedPosCS = mul(UNITY_MATRIX_VP,float4(reflectedPosWS,1));//posWS -> posCS
 	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
 
+	//early exit if non valid uv anymore, to avoid out of bound access
+	float2 absNDC = abs(reflectedPosNDCxy);
+	if(absNDC.x >= 1 || absNDC.y >= 1) return;
+
 	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen [0,1] uv
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,15 +112,8 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//all additional fix in this pass
-	//ref: http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	//TODO: write all single pass fix here
-	//see -> http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel 1
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,13 +130,18 @@ void FillMissingColorInfo(uint3 id : SV_DispatchThreadID)
 	//ref: http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	//TODO: fix "holes after projection"
+	//fix "holes after projection"
 	//see -> http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
+	//only fix "no data" hole pixels, no data pixels has default value 99999 in PosWSyRT	
+	//if top is valid, but this pixel has no data, this pixel is a hole!
+	if(PosWSyRT[id.xy] > 9000 && PosWSyRT[id.xy + uint2(0, 1)] < 9000)
+	{
+		ColorRT[id.xy] = ColorRT[id.xy + uint2(0,1)];			
+	}		
+
 
 	//TODO: fix "behind front object occluded missing pixels"
 	//see -> Low Complexity, High Fidelity: The Rendering of INSIDE https://youtu.be/RdN06E6Xn9E?t=2385
 
-	//temp code for show target areas, should delete when fix is done
-	if(PosWSyRT[id.xy] > 9000)
-		ColorRT[id.xy] = half4(1,0,0,1);
+	//TODO: fix flicker pixels (not sure how to)
 }

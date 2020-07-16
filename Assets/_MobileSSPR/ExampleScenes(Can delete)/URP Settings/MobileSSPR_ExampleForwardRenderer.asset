@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Active: 1
   Settings:
     shouldRenderSSPR: 1
-    shouldFillMissingColorInfo: 0
+    shouldFillMissingColorInfo: 1
     horizontalReflectionPlaneHeightWS: 0
     fadeOutScreenBorderWidth: 0.5
     RT_height: 512
