@@ -115,7 +115,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel 1
+// kernel 1 (separate dispatch to force all threads finished their job first in kernel 0)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel FillMissingColorInfo
 
@@ -132,16 +132,17 @@ void FillMissingColorInfo(uint3 id : SV_DispatchThreadID)
 
 	//fix "holes after projection"
 	//see -> http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
-	//only fix "no data" hole pixels, no data pixels has default value 99999 in PosWSyRT	
-	//if top is valid, but this pixel has no data, this pixel is a hole!
+	//only fix "no data" hole pixels, "no data" pixels has default value 99999 in PosWSyRT	
+	//if top is valid, but this pixel is "no data", this pixel is probably a hole!
 	if(PosWSyRT[id.xy] > 9000 && PosWSyRT[id.xy + uint2(0, 1)] < 9000)
 	{
 		ColorRT[id.xy] = ColorRT[id.xy + uint2(0,1)];			
 	}		
 
 
-	//TODO: fix "behind front object occluded missing pixels"
+	//TODO: fix "pixel behind front object occluded missing pixels"
 	//see -> Low Complexity, High Fidelity: The Rendering of INSIDE https://youtu.be/RdN06E6Xn9E?t=2385
 
-	//TODO: fix flicker pixels (not sure how to)
+	//TODO: fix flicker pixels (not sure how to, the more pixels writes to the same place, the more flickering)
+	//see -> http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 }
