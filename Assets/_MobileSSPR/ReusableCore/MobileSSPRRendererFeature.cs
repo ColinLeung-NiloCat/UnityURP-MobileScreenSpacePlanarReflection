@@ -148,6 +148,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        if (!Settings.SSPR_computeShader) return;
+
         renderer.EnqueuePass(m_ScriptablePass);
     }
 }
