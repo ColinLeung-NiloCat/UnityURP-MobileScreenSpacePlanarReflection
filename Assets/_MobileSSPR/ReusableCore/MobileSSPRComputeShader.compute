@@ -8,7 +8,7 @@
 
 //common input from MobileSSPRRendererFeature
 RWTexture2D<half4> ColorRT;
-RWTexture2D<float> PosWSyRT;
+RWTexture2D<float4> PosWSyRT;
 float2 _RTSize;
 //common sample settings
 SamplerState PointClampSampler;
@@ -41,12 +41,12 @@ half sdBox(half2 p, half2 b)
 void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 {
     ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
-    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
+    PosWSyRT[uint2(id.xy)] = float4(0,0,99999,0);//a very high posWS.y as clear value
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//prepare data
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	float2 screenUV = float2(id.x/(_RTSize.x-1),id.y/(_RTSize.y-1)); //[0,RTSize-1] -> screen [0,1] uv
+	float2 screenUV = float2(id.x/(_RTSize.x),id.y/(_RTSize.y)); //[0,RTSize-1] -> screen [0,1] uv
 	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//rawDepth(posCS.z) in _CameraDepthTexture
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,12 +79,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float4 reflectedPosCS = mul(UNITY_MATRIX_VP,float4(reflectedPosWS,1));//posWS -> posCS
 	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
 
-	//early exit if non valid uv anymore, to avoid out of bound access
-	float2 absNDC = abs(reflectedPosNDCxy);
-	if(absNDC.x >= 1 || absNDC.y >= 1) return;
-
-	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen [0,1] uv
-
+	float2 reflectedScreenUV = saturate(reflectedPosNDCxy * 0.5 + 0.5); //posNDC -> screen [0,1] uv, saturate to avoid out of bound access
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, SSPR usage% in a
 	//write PosWSyRT[reflectedScreenUV] = inputPixelPosWS.y
@@ -94,55 +89,90 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	reflectedScreenUV.y = 1.0 - reflectedScreenUV.y;
 #endif
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize]
-	
-	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
-	//here we only allow "closer to horizontal reflection plane's candidate" to write to ColorRT & PosWSyRT.
-	//At the end, only the "closest to horizontal reflection plane candidate" will remain in ColorRT & PosWSyRT, which is the correct reflection data
-	if(posWS.y < PosWSyRT[reflectedScreenID])
-	{
-		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
 
-		//smooth fadeout if pixel is near _CameraOpaqueTexture's uv border
-		half d = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
-		half fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth,d);
+	//smooth fadeout if pixel is near _CameraOpaqueTexture's uv border
+	float distanceToBorder = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
+	float fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth, distanceToBorder);
 
-		//we write the following data to 2 RTs:
-		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage %)
-		//-PosWSyRT.r = current lowest PosyWS (concept similar to a regular depth buffer ZTest->ZWrite)
-		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
-		PosWSyRT[reflectedScreenID] = posWS.y;
-	}
+	//#######################################################################
+	//#######################################################################
+	//#######################################################################
+	//#######################################################################
+	//we write the following data to PackedDataRT:
+	//-xy = new reflected uv [0,1]
+	//-z = posWS.y (not used)
+	//-w = fadeoutAlpha
+	uint2 screenID = screenUV * _RTSize;
+	PosWSyRT[screenID] = float4(reflectedScreenID, posWS.y, fadeoutAlpha);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel 1 (separate dispatch to force all threads finished their job first in kernel 0)
+// kernel #1 (separate dispatch to force all threads finished their job first in kernel 0)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel FillMissingColorInfo
+#pragma kernel Swap
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(32, 32, 1)]
-void FillMissingColorInfo(uint3 id : SV_DispatchThreadID)
+void Swap(uint3 id : SV_DispatchThreadID)
 {
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//fix all "holes" caused by missing screen space data
-	//ref: [Filling the gaps] from http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
-	//ref: http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
-	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float4 inputLocationReadValue = PosWSyRT[id.xy];
+	uint2 goTo = uint2(inputLocationReadValue.xy);
 
-	//fix "holes after projection"
-	//see -> http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
-	//only fix "no data" hole pixels, "no data" pixels has default value 99999 in PosWSyRT	
-	//if top is valid, but this pixel is "no data", this pixel is probably a hole!
-	if(PosWSyRT[id.xy] > 9000 && PosWSyRT[id.xy + uint2(0, 1)] < 9000)
+	//using if here can keep most of the correct data, still some flickering will exist
+	if(PosWSyRT[goTo].z > inputLocationReadValue.z)
+		PosWSyRT[goTo] = float4(id.xy / _RTSize, inputLocationReadValue.zw);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel 2 (separate dispatch to force all threads finished their job first in kernel 0)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel ResolveToColorRT
+
+//numthreads x*y*z must = 1024 for maximum performance in SM5
+//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
+[numthreads(32, 32, 1)]
+void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
+{
+	float4 v = PosWSyRT[id.xy];
+	ColorRT[id.xy] = half4(_CameraOpaqueTexture.SampleLevel(LinearClampSampler, v.xy, 0).rgb,v.w * (1-saturate(v.z-1000))); //keep alpha = fadeout value, but not _CameraOpaqueTexture's a 
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel #3
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel FillHoles
+
+//numthreads x*y*z must = 1024 for maximum performance in SM5
+//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
+[numthreads(32, 16, 1)]
+void FillHoles(uint3 id : SV_DispatchThreadID)
+{
+	int count = 2;
+	id.y*=count;
+	//leak from top to middle
+	for(int y = 0 ; y < count ; y++)
 	{
-		ColorRT[id.xy] = ColorRT[id.xy + uint2(0,1)];			
-	}		
+		half4 top = ColorRT[id.xy + uint2(0,y)];
+		half4 bottom = ColorRT[id.xy + uint2(0,y+1)];
+		if(top.a > bottom.a + 0.5)
+		{
+			ColorRT[id.xy + uint2(0,y+1)] = top;
+			//ColorRT[id.xy + uint2(0,y+1)] = (top+bottom)/2;
+			//ColorRT[id.xy + uint2(0,y+1)] = half4(lerp(bottom,top, saturate((1.0 - y/64.0)*2.0)));				
+		}
 
+	}
 
-	//TODO: fix "pixel behind front object occluded missing pixels"
-	//see -> Low Complexity, High Fidelity: The Rendering of INSIDE https://youtu.be/RdN06E6Xn9E?t=2385
-
-	//TODO: fix flicker pixels (not sure how to, the more pixels writes to the same place, the more flickering)
-	//see -> http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
+	//not looking better for 16+16 top+bottom split fill
+	/*
+	//leak from bottom to middle
+	for(int y = 31 ; y >= 16 ; y--)
+	{
+		half4 top = ColorRT[id.xy + uint2(0,y)];
+		half4 bottom = ColorRT[id.xy + uint2(0,y+1)];
+		if(bottom.a > top.a + 0.1)
+			ColorRT[id.xy + uint2(0,y)] = bottom;	
+	}
+	*/
 }

@@ -4,19 +4,21 @@ using UnityEngine.Rendering.Universal;
 
 public class MobileSSPRRendererFeature : ScriptableRendererFeature
 {
-    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 MobileSSPRRendererFeature only (not > 1)
+    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 and not more than 1 MobileSSPRRendererFeature
 
     [System.Serializable]
     public class PassSettings
     {
         public bool shouldRenderSSPR = true;
-        public bool shouldFillMissingColorInfo = false;
-        public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit
+        public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
+
+        [Range(0, 16)]
+        public int fillHoleIteration = 1;
         [Range(0.01f,1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
 
         [Range(32, 1024)]
-        public int RT_height = 1024;
+        public int RT_height = 512;
 
         public ComputeShader SSPR_computeShader;
     }
@@ -56,17 +58,17 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         // The render pipeline will ensure target setup and clearing happens in an performance manner.
         public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
         {    
-            RenderTextureDescriptor rtd = new RenderTextureDescriptor(GetRTWidth(), GetRTHeight());
-            rtd.enableRandomWrite = true; //using RWTexture2D in compute shader need to turn on this
+            RenderTextureDescriptor rtd = new RenderTextureDescriptor(GetRTWidth(), GetRTHeight(),RenderTextureFormat.Default, 0, 0);
+
             rtd.sRGB = false; //don't need gamma correction when sampling these RTs, it is linear data already because it will be filled by screen's linear data
-            rtd.colorFormat = cameraTextureDescriptor.colorFormat;
+            rtd.enableRandomWrite = true; //using RWTexture2D in compute shader need to turn on this
 
             //color RT
-            rtd.colorFormat = RenderTextureFormat.ARGB32; //we need alpha!
+            rtd.colorFormat = RenderTextureFormat.ARGB32; //we need alpha! (LDR is enough, ignore HDR is acceptable for reflection)
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
-            rtd.colorFormat = RenderTextureFormat.RFloat;
+            rtd.colorFormat = RenderTextureFormat.ARGBHalf; //will help mobile to cut down render cost(bandwidth/2)
             cmd.GetTemporaryRT(_SSPR_PosWSyRT_pid, rtd);
         }
 
@@ -81,10 +83,10 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             int dispatchThreadGroupXCount = Mathf.CeilToInt(GetRTWidth() / 32f);
             int dispatchThreadGroupYCount = Mathf.CeilToInt(GetRTHeight() / 32f);
             int dispatchThreadGroupZCount = 1;
-
-            //draw RT (kernel #0)
+     
             if(settings.shouldRenderSSPR)
             {
+                //draw RT (kernel #0) 
                 cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
@@ -93,23 +95,37 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+
+                //double swap (kernel #2)
+                for(int i = 0; i < 2; i++)
+                {
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                }
+
+                //resolve ColorRT (kernel #1)
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+
+                //fill RT hole (kernel #3)
+                for(int i = 0; i < settings.fillHoleIteration; i++)
+                {
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 3, dispatchThreadGroupXCount, Mathf.CeilToInt(dispatchThreadGroupYCount/2f), dispatchThreadGroupZCount);
+                }
+
+                //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)
+                //where _MobileSSPR_ColorRT's rgb is reflection color, a is reflection usage 0~1 for lerp with fallback reflection probe's rgb
+                cb.SetGlobalTexture(_SSPR_ColorRT_pid, _SSPR_ColorRT_rti);
                 cb.EnableShaderKeyword("_MobileSSPR");
             }
             else
             {
+                //allow user to skip SSPR related code if disabled
                 cb.DisableShaderKeyword("_MobileSSPR");
             }
-            //fill RT (kernel #1)
-            if(settings.shouldRenderSSPR && settings.shouldFillMissingColorInfo)
-            {
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "ColorRT", _SSPR_ColorRT_rti);
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
-                cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-            }
-
-            //set global RT, for regular renderer's shader to sample reflection result RT (_MobileSSPR_ColorRT)
-            //where _MobileSSPR_ColorRT's rgb is reflection color, a is reflection usage 0~1 for lerp with fallback reflection probe's rgb
-            cb.SetGlobalTexture(_SSPR_ColorRT_pid, _SSPR_ColorRT_rti);
 
             context.ExecuteCommandBuffer(cb);
             CommandBufferPool.Release(cb);
