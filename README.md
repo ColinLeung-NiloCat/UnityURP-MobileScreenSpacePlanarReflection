@@ -34,9 +34,9 @@
  - assign this material to your new plane
  - DONE! You should see correct reflection both in scene and game window
 
- I can see some strength white/gray areas in reflection
+ I can see some strength white/gray flicker in reflection
  -------------------
- It is an expected artifact of screen space reflection, currently I am looking for a fast enough mobile solution to solve it.
+ It is an expected artifact of this implementation of mobile screen space planar reflection(because we can't use InterlockedMin and uint RenderTexture), currently I am looking  for a fast enough mobile solution to solve it.
  - see this for more detail: http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  
  Notes
