@@ -36,8 +36,8 @@
 
  I can see some strength white/gray flicker in reflection
  -------------------
- It is an expected artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile), currently I am looking  for a fast enough mobile solution to solve it.
- - see these for more detail: 
+ It is an expected artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile), currently I am looking  for a fast enough mobile solution to solve it. 
+see these for more detail: 
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
  
