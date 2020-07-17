@@ -91,6 +91,7 @@ Shader "MobileSSPR/ExampleShader"
 #if _MobileSSPR
                 //our screen space reflection
                 half2 noise = tex2D(_SSPR_UVNoiseTex, IN.uv);
+                noise = noise *2-1;
                 noise.y = -abs(noise); //hide missing data, only allow offset to valid location
                 noise.x *= 0.25;
                 
