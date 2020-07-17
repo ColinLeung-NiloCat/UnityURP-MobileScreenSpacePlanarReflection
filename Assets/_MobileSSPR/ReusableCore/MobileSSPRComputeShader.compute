@@ -8,7 +8,7 @@
 
 //common input from MobileSSPRRendererFeature
 RWTexture2D<half4> ColorRT;
-RWTexture2D<float4> PosWSyRT;
+RWTexture2D<half4> PosWSyRT;
 float2 _RTSize;
 //common sample settings
 SamplerState PointClampSampler;
