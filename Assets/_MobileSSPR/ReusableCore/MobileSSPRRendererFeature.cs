@@ -136,13 +136,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PackedDataRT", _SSPR_PackedDataRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
-                    //fill RT hole (kernel #3),at least run once
-                    for (int i = 0; i < settings.fillHoleIteration; i++)
-                    {
-                        cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
-                        cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                        cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
-                    }
+
                 }
                 else
                 {
@@ -152,6 +146,14 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                     cb.DispatchCompute(settings.SSPR_computeShader, 4, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                }
+
+                //fill RT hole (kernel #3),at least run once
+                for (int i = 0; i < settings.fillHoleIteration; i++)
+                {
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
                 }
 
                 //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)

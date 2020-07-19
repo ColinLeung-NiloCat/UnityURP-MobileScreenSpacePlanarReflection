@@ -255,5 +255,4 @@ void MobileSingePassColorRTResolve (uint3 id : SV_DispatchThreadID)
 		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
-
 }
