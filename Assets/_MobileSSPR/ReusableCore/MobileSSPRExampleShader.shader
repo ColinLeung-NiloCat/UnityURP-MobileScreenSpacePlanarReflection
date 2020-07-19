@@ -82,11 +82,10 @@ Shader "MobileSSPR/ExampleShader"
                 half3 viewWS = (IN.posWS - _WorldSpaceCameraPos);
                 viewWS = normalize(viewWS);
 
-                half3 reflectDirWS = viewWS.y * half3(1,-1,1);//reflect at horizontal plane
+                half3 reflectDirWS = viewWS * half3(1,-1,1);//reflect at horizontal plane
 
                 //call this function in Lighting.hlsl-> half3 GlossyEnvironmentReflection(half3 reflectVector, half perceptualRoughness, half occlusion)
                 half3 reflectionProbeResult = GlossyEnvironmentReflection(reflectDirWS,_Roughness,1);               
-
                 half4 SSPRResult = 0;
 #if _MobileSSPR
                 //our screen space reflection

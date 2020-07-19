@@ -153,7 +153,7 @@ void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void FillHoles(uint3 id : SV_DispatchThreadID)
 {
-	int count = 32;
+	int count = 2;
 	id.y*=count;
 	//fill from top to middle
 	for(int y = 0 ; y < count ; y++)
