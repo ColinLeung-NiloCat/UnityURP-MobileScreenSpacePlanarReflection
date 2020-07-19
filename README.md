@@ -1,5 +1,5 @@
 # UnityURP-MobileScreenSpacePlanarReflection
- ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
+ A simple and fast mobile ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing  
  
@@ -29,7 +29,7 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, result should be correct if your android device support Vulkan (OpenGLES3.2 is not enough!).
+ Tested on ~10 android devices, result should be correct and rendering is fast enough, if your android device support Vulkan. (OpenGLES3.2 is not enough!)
  
  How to try this in my own URP project?
  -------------------
@@ -55,7 +55,7 @@ see these for more detail:
  -------------------
 This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
 We can not use InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format RFloat / ARGBHalf can be used on mobile devices, we use this instead of uint RT.
+RenderTexture color format RFloat / ARGBHalf can be used on mobile devices, we use these instead of uint RT.
  
  Editor
  -------------------
