@@ -125,7 +125,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount/1f), Mathf.CeilToInt(dispatchThreadGroupYCount/1f), dispatchThreadGroupZCount);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount/2f), Mathf.CeilToInt(dispatchThreadGroupYCount/2f), dispatchThreadGroupZCount);
                 }
 
                 //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)

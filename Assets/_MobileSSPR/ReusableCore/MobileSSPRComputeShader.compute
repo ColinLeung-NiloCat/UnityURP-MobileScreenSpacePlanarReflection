@@ -120,7 +120,7 @@ void Swap(uint3 id : SV_DispatchThreadID)
 	float4 inputLocationReadValue = PackedDataRT[id.xy];
 	uint2 goTo = uint2(inputLocationReadValue.xy);
 
-	//using if() here can rejuect incorrect write.
+	//using if() here can reject incorrect write.
 	//still some flickering will remain but not much
 	if(PackedDataRT[goTo].z > inputLocationReadValue.z)
 		PackedDataRT[goTo] = float4(id.xy, inputLocationReadValue.zw);
@@ -150,23 +150,25 @@ void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void FillHoles(uint3 id : SV_DispatchThreadID)
-{
-	//fill from top to bottom pixel
+{	
+	//fill holes inside each 2*2
+	id.xy *= 2;
+
+	//read to cache
 	half4 center = ColorRT[id.xy + uint2(0,0)];
-	half4 bottom = ColorRT[id.xy + uint2(0,1)];
-	half4 right = ColorRT[id.xy + uint2(1, 0)];
-	half4 left = ColorRT[id.xy + uint2(-1, 0)];
-	//only fill holes
-	if (center.a > bottom.a + 0.5)
-	{
-		ColorRT[id.xy + uint2(0,1)] = center;
-	}
-	if (center.a > right.a + 0.5)
-	{
-		ColorRT[id.xy + uint2(1, 0)] = center;
-	}
-	if (center.a > left.a + 0.5)
-	{
-		ColorRT[id.xy + uint2(-1, 0)] = center;
-	}
+	half4 right = ColorRT[id.xy + uint2(0,1)];
+	half4 bottom = ColorRT[id.xy + uint2(1,0)];
+	half4 bottomRight = ColorRT[id.xy + uint2(1,1)];
+	
+	//find best inside 2*2
+	half4 best = center;
+	best = right.a > best.a + 0.5 ? right : best;
+	best = bottom.a > best.a + 0.5 ? bottom : best;
+	best = bottomRight.a > best.a + 0.5 ? bottomRight : best;
+
+	//write better rgba
+	ColorRT[id.xy + uint2(0,0)] = best.a > center.a + 0.5 ? best : center;
+	ColorRT[id.xy + uint2(0,1)] = best.a > right.a + 0.5 ? best : right;
+	ColorRT[id.xy + uint2(1,0)] = best.a > bottom.a + 0.5 ? best : bottom;
+	ColorRT[id.xy + uint2(1,1)] = best.a > bottomRight.a + 0.5 ? best : bottomRight;
 }
