@@ -51,7 +51,7 @@ see these for more detail:
  -------------------
 This is a test project to see if screen space reflection & compute shader can run on mobile correctly and fast enough.   
 We need to avoid InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format Rfloat / RGBAHalf can be used on mobile devices, we use this iunstead of uint.
+RenderTexture color format ARGBHalf can be used on mobile devices, we use this instead of uint RT.
  
  Editor
  -------------------
@@ -62,6 +62,7 @@ Implementation reference
 - http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 - https://zhuanlan.zhihu.com/p/150890059
+- https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections
 
 TODO
 ----------------
