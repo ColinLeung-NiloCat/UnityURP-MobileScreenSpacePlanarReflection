@@ -2,12 +2,6 @@
  ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing
-
-On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
- - cost 1ms to update 128 height SSPR RT
- - cost 4ms to update 256 height SSPR RT
- - cost 11ms to update 512 height SSPR RT
- 
  SSPR ON
  ![screenshot](https://i.imgur.com/cNaVHLK.png)
  SSPR OFF
@@ -16,6 +10,13 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  ![screenshot](https://i.imgur.com/XvudHkR.png)
  SSPR OFF
  ![screenshot](https://i.imgur.com/AZ08hZ8.png)
+ 
+On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
+ - cost 1ms to update 128 height SSPR RT
+ - cost 4ms to update 256 height SSPR RT
+ - cost 11ms to update 512 height SSPR RT
+ 
+
  
  Where are the important files?
 -------------------
