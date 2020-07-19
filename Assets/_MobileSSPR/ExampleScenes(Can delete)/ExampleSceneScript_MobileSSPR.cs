@@ -23,12 +23,6 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
         GUI.Label(new Rect(350, 25, 200, 25), $"ColorRT Height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");
         MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(550, 25, 200, 25), MobileSSPRRendererFeature.instance.Settings.RT_height, 128,1024));
 
-        GUI.Label(new Rect(350, 125, 200, 25), $"Swap Iteration = {MobileSSPRRendererFeature.instance.Settings.swapIteration}");
-        MobileSSPRRendererFeature.instance.Settings.swapIteration = (int)(GUI.HorizontalSlider(new Rect(550, 125, 200, 25), MobileSSPRRendererFeature.instance.Settings.swapIteration, 0, 8));
-
-        GUI.Label(new Rect(350, 225, 200, 25), $"FillHole Iteration = {MobileSSPRRendererFeature.instance.Settings.fillHoleIteration}");
-        MobileSSPRRendererFeature.instance.Settings.fillHoleIteration = (int)(GUI.HorizontalSlider(new Rect(550, 225, 200, 25), MobileSSPRRendererFeature.instance.Settings.fillHoleIteration, 0, 8));
-
         //view SSPR's result using different skyboxs
         if (GUI.Button(new Rect(200, 200, 100, 100), "SwitchSkyBox"))
         {

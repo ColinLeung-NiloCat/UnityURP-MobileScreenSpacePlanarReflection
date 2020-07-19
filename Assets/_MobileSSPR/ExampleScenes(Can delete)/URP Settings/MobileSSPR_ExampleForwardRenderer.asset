@@ -15,7 +15,6 @@ MonoBehaviour:
   m_Active: 1
   Settings:
     shouldRenderSSPR: 1
-    ForceFastestSinglePassColorResolve: 1
     horizontalReflectionPlaneHeightWS: 0.01
     fadeOutScreenBorderWidth: 0.5
     RT_height: 512

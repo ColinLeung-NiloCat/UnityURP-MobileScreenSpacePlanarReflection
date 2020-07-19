@@ -13,19 +13,20 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     {
         [Header("Settings")]
         public bool shouldRenderSSPR = true;
-        public bool ForceFastestSinglePassColorResolve = true;
         public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
         [Range(0.01f, 1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
 
-        [Header("Performance settings")]
+        [Header("General Performance Settings")]
         [Range(128, 1024)]
         [Tooltip("set to 512 is enough for sharp reflection")]
         public int RT_height = 512;
-        [Range(0, 8)]
+
+        [Header("Non Vulkan performance Setting")]
+        [Range(0, 4)]
         [Tooltip("set to 2 can reduce most of UAV flicking")]
         public int swapIteration = 2;
-        [Range(0, 8)]
+        [Range(0, 2)]
         [Tooltip("set to 1 can fill most holes")]
         public int fillHoleIteration = 1;
 
@@ -66,6 +67,10 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
+        bool ShouldUseVulkanFastPath()
+        {
+            return SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan;
+        }
         // This method is called before executing the render pass.
         // It can be used to configure render targets and their clear state. Also to create temporary render target textures.
         // When empty this render pass will render to the active camera render target.
@@ -83,7 +88,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //PackedData RT
-            if(settings.ForceFastestSinglePassColorResolve)
+            if(ShouldUseVulkanFastPath())
             {
                 //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
                 rtd.colorFormat = RenderTextureFormat.RFloat;
@@ -114,7 +119,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
 
-                if (!settings.ForceFastestSinglePassColorResolve)
+                if (!ShouldUseVulkanFastPath())
                 {
                     //draw RT (kernel #0) 
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "ColorRT", _SSPR_ColorRT_rti);
@@ -135,8 +140,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PackedDataRT", _SSPR_PackedDataRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-
-
                 }
                 else
                 {
@@ -148,7 +151,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     cb.DispatchCompute(settings.SSPR_computeShader, 4, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
-                //fill RT hole (kernel #3),at least run once
+                //shared pass: fill RT hole (kernel #3),at least run once
                 for (int i = 0; i < settings.fillHoleIteration; i++)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
@@ -182,7 +185,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         {
             cmd.ReleaseTemporaryRT(_SSPR_ColorRT_pid);
 
-            if(settings.ForceFastestSinglePassColorResolve)
+            if(ShouldUseVulkanFastPath())
                 cmd.ReleaseTemporaryRT(_SSPR_PosWSyRT_pid);
             else
                 cmd.ReleaseTemporaryRT(_SSPR_PackedDataRT_pid);
