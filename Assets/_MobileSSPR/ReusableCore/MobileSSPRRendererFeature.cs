@@ -16,7 +16,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public float fadeOutScreenBorderWidth = 0.5f;
 
         [Header("Performance settings")]
-        [Range(64, 1024)]
+        [Range(128, 1024)]
         [Tooltip("set to 512 is enough for sharp reflection")]
         public int RT_height = 512;
         [Range(0, 8)]
