@@ -65,7 +65,7 @@ It is not expected! Please report your android device name in Issues, thanks!
  -------------------
 This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
 We can not use InterlockedMin and RenderTexture color format "uint" on mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-Instead, we wll use RenderTexture color format RFloat / ARGBHalf.
+Instead, we will use RenderTexture color format RFloat / ARGBHalf.
  
  Editor
  -------------------
