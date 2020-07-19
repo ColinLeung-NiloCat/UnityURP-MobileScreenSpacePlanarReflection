@@ -58,3 +58,6 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# ignore all AssetStore assets (CodeStage/AdvancedFPSCounter)
+[Aa]ssets/Plugins*
+

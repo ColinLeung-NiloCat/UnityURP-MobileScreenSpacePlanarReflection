@@ -390,49 +390,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &459528195
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 459528197}
-  - component: {fileID: 459528196}
-  m_Layer: 5
-  m_Name: Advanced FPS Counter
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &459528196
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 459528195}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e4ff4051e75dc9443879b116bd65c930, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &459528197
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 459528195}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 5
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &665423899
 GameObject:
   m_ObjectHideFlags: 0
@@ -1026,6 +983,140 @@ ReflectionProbe:
   m_UseOcclusionCulling: 1
   m_Importance: 1
   m_CustomBakedTexture: {fileID: 0}
+--- !u!1 &1905675096
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1905675098}
+  - component: {fileID: 1905675097}
+  m_Layer: 5
+  m_Name: Advanced FPS Counter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1905675097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1905675096}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4ff4051e75dc9443879b116bd65c930, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fpsCounter:
+    enabled: 1
+    anchor: 0
+    color: {r: 0.33333334, g: 0.85490197, b: 0.4, a: 1}
+    style: 1
+    updateInterval: 0.5
+    warningLevelValue: 50
+    criticalLevelValue: 20
+    resetAverageOnNewScene: 1
+    resetMinMaxOnNewScene: 1
+    minMaxIntervalsToSkip: 3
+    realtimeFPSFoldout: 0
+    realtimeFPS: 1
+    milliseconds: 1
+    averageFoldout: 0
+    average: 1
+    averageMilliseconds: 1
+    averageNewLine: 1
+    averageSamples: 50
+    minMaxFoldout: 0
+    minMax: 1
+    minMaxMilliseconds: 0
+    minMaxNewLine: 1
+    minMaxTwoLines: 0
+    renderFoldout: 0
+    render: 0
+    renderNewLine: 1
+    renderAutoAdd: 1
+    colorWarning: {r: 0.9254902, g: 0.8784314, b: 0.34509805, a: 1}
+    colorCritical: {r: 0.9764706, g: 0.35686275, b: 0.35686275, a: 1}
+    colorRender: {r: 0.654902, g: 0.43137255, b: 0.81960785, a: 1}
+  memoryCounter:
+    enabled: 1
+    anchor: 0
+    color: {r: 0.91764706, g: 0.93333334, b: 0.39607844, a: 1}
+    style: 1
+    updateInterval: 0.5
+    precise: 1
+    total: 1
+    allocated: 1
+    monoUsage: 0
+    gfx: 1
+  deviceInfoCounter:
+    enabled: 1
+    anchor: 2
+    color: {r: 0.6745098, g: 0.6745098, b: 0.6745098, a: 1}
+    style: 0
+    platform: 1
+    cpuModel: 1
+    cpuModelNewLine: 1
+    gpuModel: 1
+    gpuModelNewLine: 1
+    gpuApi: 1
+    gpuApiNewLine: 1
+    gpuSpec: 1
+    gpuSpecNewLine: 1
+    ramSize: 1
+    ramSizeNewLine: 1
+    screenData: 1
+    screenDataNewLine: 1
+    deviceModel: 0
+    deviceModelNewLine: 1
+  hotKey: 96
+  circleGesture: 0
+  hotKeyCtrl: 0
+  hotKeyShift: 0
+  hotKeyAlt: 0
+  keepAlive: 1
+  operationMode: 2
+  forceFrameRate: 0
+  forcedFrameRate: -1
+  background: 1
+  backgroundColor: {r: 0, g: 0, b: 0, a: 0.60784316}
+  backgroundPadding: 5
+  shadow: 0
+  shadowColor: {r: 0, g: 0, b: 0, a: 0.5019608}
+  shadowDistance: {x: 1, y: -1}
+  outline: 0
+  outlineColor: {r: 0, g: 0, b: 0, a: 0.5019608}
+  outlineDistance: {x: 1, y: -1}
+  autoScale: 0
+  scaleFactor: 1
+  labelsFont: {fileID: 12800000, guid: fb80074802966ad438ec681fae1be1c2, type: 3}
+  fontSize: 14
+  lineSpacing: 1
+  countersSpacing: 0
+  paddingOffset: {x: 5, y: 5}
+  pixelPerfect: 1
+  sortingOrder: 10000
+  lookAndFeelFoldout: 0
+  advancedFoldout: 0
+--- !u!4 &1905675098
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1905675096}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2138677391
 GameObject:
   m_ObjectHideFlags: 0

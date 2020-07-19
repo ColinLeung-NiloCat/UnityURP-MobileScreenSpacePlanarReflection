@@ -15,18 +15,18 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
     private void OnGUI()
     {
         //show an On/OFF toggle, to check rendering SSPR_RT alone's net ms difference
-        MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR = (GUI.Toggle(new Rect(150, 25, 100, 100), MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR, "SSPR on"));
+        MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR = (GUI.Toggle(new Rect(200, 25, 100, 100), MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR, "SSPR on"));
 
         //show slider to control SSPR ColorRT size
-        GUI.Label(new Rect(300, 25, 200, 200), $"SSPR_ColorRT height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");
-        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(500, 25, 200, 200), MobileSSPRRendererFeature.instance.Settings.RT_height, 128,1024));
+        GUI.Label(new Rect(350, 25, 200, 200), $"SSPR_ColorRT height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");
+        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(550, 25, 200, 200), MobileSSPRRendererFeature.instance.Settings.RT_height, 128,1024));
 
         //view SSPR's result using different skyboxs
-        if (GUI.Button(new Rect(150, 200, 100, 100), "SwitchSkyBox"))
+        if (GUI.Button(new Rect(200, 200, 100, 100), "SwitchSkyBox"))
         {
             RenderSettings.skybox = skyboxs[(skyBoxIndex++)%skyboxs.Count];
         }
 
-        GUI.Label(new Rect(150, 150, 100, 100), $"{(int)(Time.smoothDeltaTime * 1000)} ms ({ Mathf.CeilToInt(1f/Time.smoothDeltaTime)}fps)", new GUIStyle() { fontSize = 30 } );
+        GUI.Label(new Rect(200, 150, 100, 100), $"{(int)(Time.smoothDeltaTime * 1000)} ms ({ Mathf.CeilToInt(1f/Time.smoothDeltaTime)}fps)", new GUIStyle() { fontSize = 30 } );
     }
 }
