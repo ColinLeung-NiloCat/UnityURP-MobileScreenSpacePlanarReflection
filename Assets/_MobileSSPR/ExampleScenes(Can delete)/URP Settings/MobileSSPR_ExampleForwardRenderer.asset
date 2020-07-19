@@ -1,27 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7559908623420820637
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aaad5c85f2c809042933d794a0ae6d8c, type: 3}
-  m_Name: NewMobileSSPRRendererFeature
-  m_EditorClassIdentifier: 
-  m_Active: 1
-  Settings:
-    shouldRenderSSPR: 1
-    horizontalReflectionPlaneHeightWS: 0
-    RT_height: 512
-    fadeOutScreenBorderWidth: 0.5
-    swapIteration: 2
-    fillHoleIteration: 1
-    SSPR_computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3,
-      type: 3}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35,8 +13,8 @@ MonoBehaviour:
   m_Name: MobileSSPR_ExampleForwardRenderer
   m_EditorClassIdentifier: 
   m_RendererFeatures:
-  - {fileID: -7559908623420820637}
-  m_RendererFeatureMap: 63f3963e29cf1597
+  - {fileID: 2508875025677794993}
+  m_RendererFeatureMap: b1be5f138b50d122
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   shaders:
     blitPS: {fileID: 4800000, guid: c17132b1f77d20942aa75f8429c0f8bc, type: 3}
@@ -59,3 +37,25 @@ MonoBehaviour:
     failOperation: 0
     zFailOperation: 0
   m_ShadowTransparentReceive: 0
+--- !u!114 &2508875025677794993
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaad5c85f2c809042933d794a0ae6d8c, type: 3}
+  m_Name: NewMobileSSPRRendererFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  Settings:
+    shouldRenderSSPR: 1
+    horizontalReflectionPlaneHeightWS: 0
+    fadeOutScreenBorderWidth: 0.5
+    RT_height: 512
+    swapIteration: 2
+    fillHoleIteration: 1
+    SSPR_computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3,
+      type: 3}

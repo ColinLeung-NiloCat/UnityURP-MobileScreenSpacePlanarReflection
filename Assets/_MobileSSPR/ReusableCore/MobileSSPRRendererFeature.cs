@@ -12,13 +12,18 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Header("Settings")]
         public bool shouldRenderSSPR = true;
         public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
-        [Range(64, 1024)]
-        public int RT_height = 512;
         [Range(0.01f, 1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
-        [Range(0, 4)]
+
+        [Header("Performance settings")]
+        [Range(64, 1024)]
+        [Tooltip("set to 512 is enough for sharp reflection")]
+        public int RT_height = 512;
+        [Range(0, 8)]
+        [Tooltip("set to 2 can reduce most of UAV flicking")]
         public int swapIteration = 2;
-        [Range(0, 4)]
+        [Range(0, 8)]
+        [Tooltip("set to 1 can fill most holes")]
         public int fillHoleIteration = 1;
 
         [Header("Resources")]
@@ -32,18 +37,19 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         static readonly int _SSPR_PackedDataRT_pid = Shader.PropertyToID("_MobileSSPR_PackedDataRT");
         RenderTargetIdentifier _SSPR_ColorRT_rti = new RenderTargetIdentifier(_SSPR_ColorRT_pid);
         RenderTargetIdentifier _SSPR_PackedDataRT_rti = new RenderTargetIdentifier(_SSPR_PackedDataRT_pid);
-        ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");//reflection plane renderer's material must use this LightMode
-        const int SHADER_NUMTHREAD_X = 8;
-        const int SHADER_NUMTHREAD_Y = 8;
-        public PassSettings settings;
+
+        ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");//reflection plane renderer's material's shader must use this LightMode
+
+        const int SHADER_NUMTHREAD_X = 8; //must match compute shader's [numthread(x)]
+        const int SHADER_NUMTHREAD_Y = 8; //must match compute shader's [numthread(y)]
+
+        PassSettings settings;
 
         public CustomRenderPass(PassSettings settings)
         {
             this.settings = settings;
         }
 
-        //RT must be multiply of 32x32 = 1024 in order to maximize compute shader performance in SM5
-        //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
         int GetRTHeight()
         {
             return Mathf.CeilToInt(settings.RT_height / (float)SHADER_NUMTHREAD_Y) * SHADER_NUMTHREAD_Y;
