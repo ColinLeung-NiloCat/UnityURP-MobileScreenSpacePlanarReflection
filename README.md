@@ -59,7 +59,7 @@ see these for more detail:
 
  I can see some small flickering in reflection in build
  -------------------
-Please report your android device name in Issues, thanks!
+It is not expected! Please report your android device name in Issues, thanks!
  
  Notes
  -------------------
