@@ -1,5 +1,5 @@
 # UnityURP-MobileScreenSpacePlanarReflection
- A simple and fast mobile ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
+ A simple and fast mobile(vulkan) ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing  
  
