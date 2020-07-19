@@ -178,19 +178,18 @@ void FillHoles(uint3 id : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel #4 (Mobile singe pass ColorRT resolve)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel SinglePassRenderSSPRRT
+#pragma kernel MobileSingePassColorRTResolve
 
 [numthreads(NUMTHREAD_X,NUMTHREAD_Y,1)]
-void SinglePassRenderSSPRRT (uint3 id : SV_DispatchThreadID)
-{
-	
+void MobileSingePassColorRTResolve (uint3 id : SV_DispatchThreadID)
+{	
     ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
     PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//prepare data
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	float2 screenUV = float2(id.x/(_RTSize.x-1),id.y/(_RTSize.y-1)); //[0,RTSize-1] -> screen [0,1] uv
+	float2 screenUV = float2(id.x/(_RTSize.x),id.y/(_RTSize.y)); //[0,RTSize-1] -> screen [0,1] uv
 	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//rawDepth(posCS.z) in _CameraDepthTexture
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
