@@ -15,7 +15,8 @@
 On Adreno630 GPU android mobile device(almost all 2019/2020 flagship android mobiles), Toggle SSPR ON/OFF:
  - cost <1ms to update 128 height SSPR RT
  - cost <1ms to update 256 height SSPR RT
- - cost 1~2ms to update 512 height SSPR RT
+ - cost 1~2ms to update 512 height SSPR RT  
+ 
 On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  - cost <1ms to update 128 height SSPR RT
  - cost 1~2ms to update 256 height SSPR RT
