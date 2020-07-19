@@ -34,7 +34,8 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, result should be correct and rendering is fast enough, if your android device support Vulkan. (OpenGLES3.2 is not enough!)
+ Tested on ~10 android devices(support Vulkan).
+ If your android device support Vulkan, result should be correct and rendering should be fast enough. (OpenGLES3.2 is not enough, must support Vulkan!)
  
  How to try this in my own URP project?
  -------------------
@@ -55,12 +56,16 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
 see these for more detail: 
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
+
+ I can see some small flickering in reflection in build
+ -------------------
+Please report your android device name in Issues, thanks!
  
  Notes
  -------------------
 This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
-We can not use InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format RFloat / ARGBHalf can be used on mobile devices, we use these instead of uint RT.
+We can not use InterlockedMin and RenderTexture color format "uint" on mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
+Instead, we wll use RenderTexture color format RFloat / ARGBHalf.
  
  Editor
  -------------------
