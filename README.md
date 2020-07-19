@@ -29,7 +29,7 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, should be alright if your android device support Vulkan.
+ Tested on ~10 android devices, result should be correct if your android device support Vulkan (OpenGLES3.2 is not enough!).
  
  How to try this in my own URP project?
  -------------------
@@ -44,18 +44,18 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  - assign this material to your new plane
  - DONE! You should see correct reflection both in scene and game window
 
- I can see some small flickering in reflection even camera and scene is not moving
+ I can see some small flickering in reflection even camera and scene is not moving in Editor, but not in build
  -------------------
- It is an expected artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile)
+ It is an expected editor artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile)
 see these for more detail: 
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
  
  Notes
  -------------------
-This is a test project to see if screen space reflection & compute shader can run on mobile correctly and fast enough.   
-We need to avoid InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format ARGBHalf can be used on mobile devices, we use this instead of uint RT.
+This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
+We can not use InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
+RenderTexture color format RFloat / ARGBHalf can be used on mobile devices, we use this instead of uint RT.
  
  Editor
  -------------------
