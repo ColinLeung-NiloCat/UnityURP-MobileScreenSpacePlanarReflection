@@ -62,6 +62,7 @@ Implementation reference
 - http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 - https://zhuanlan.zhihu.com/p/150890059
+- https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections
 
 TODO
 ----------------
