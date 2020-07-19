@@ -17,6 +17,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Range(0.01f, 1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
         [Range(0, 16)]
+        public int swapIteration = 2;
+        [Range(0, 16)]
         public int fillHoleIteration = 1;
 
         [Header("Resources")]
@@ -99,7 +101,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
                 //double swap to reduce 90% of the UAV flickering(kernel #1)
                 //run exactly 2 iterations, running >2 iterations will not improve result much
-                for(int i = 0; i < 2; i++)
+                for(int i = 0; i < settings.swapIteration; i++)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
