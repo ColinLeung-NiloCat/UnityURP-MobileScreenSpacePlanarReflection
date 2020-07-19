@@ -8,7 +8,7 @@
 
 //common input from MobileSSPRRendererFeature
 RWTexture2D<half4> ColorRT;
-RWTexture2D<half4> PosWSyRT;
+RWTexture2D<half4> PackedDataRT;
 float2 _RTSize;
 //common sample settings
 SamplerState PointClampSampler;
@@ -44,7 +44,7 @@ half sdBox(half2 p, half2 b)
 void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 {
     ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
-    PosWSyRT[uint2(id.xy)] = float4(0,0,99999,0);//a very high posWS.y as clear value
+    PackedDataRT[uint2(id.xy)] = float4(0,0,99999,0);//a very high posWS.y as clear value
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//prepare data
@@ -85,7 +85,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float2 reflectedScreenUV = saturate(reflectedPosNDCxy * 0.5 + 0.5); //posNDC -> screen [0,1] uv, saturate to avoid out of bound access
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, SSPR usage% in a
-	//write PosWSyRT[reflectedScreenUV] = inputPixelPosWS.y
+	//write PackedDataRT[reflectedScreenUV] = inputPixelPosWS.y
 	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 #if UNITY_UV_STARTS_AT_TOP
@@ -106,7 +106,7 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	//-z = posWS.y (not used)
 	//-w = fadeoutAlpha
 	uint2 screenID = screenUV * _RTSize;
-	PosWSyRT[screenID] = float4(reflectedScreenID, posWS.y, fadeoutAlpha);
+	PackedDataRT[screenID] = float4(reflectedScreenID, posWS.y, fadeoutAlpha);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,12 +119,12 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void Swap(uint3 id : SV_DispatchThreadID)
 {
-	float4 inputLocationReadValue = PosWSyRT[id.xy];
+	float4 inputLocationReadValue = PackedDataRT[id.xy];
 	uint2 goTo = uint2(inputLocationReadValue.xy);
 
 	//using if() here can keep most of the correct data, still some flickering will exist but not much
-	if(PosWSyRT[goTo].z > inputLocationReadValue.z)
-		PosWSyRT[goTo] = float4(id.xy / _RTSize, inputLocationReadValue.zw);
+	if(PackedDataRT[goTo].z > inputLocationReadValue.z)
+		PackedDataRT[goTo] = float4(id.xy / _RTSize, inputLocationReadValue.zw);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +137,7 @@ void Swap(uint3 id : SV_DispatchThreadID)
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 {
-	half4 v = PosWSyRT[id.xy];
+	half4 v = PackedDataRT[id.xy];
 
 	//write ColorRT's alpha = fadeout value, for user's shader
 	ColorRT[id.xy] = half4(_CameraOpaqueTexture.SampleLevel(LinearClampSampler, v.xy, 0).rgb,v.w * (1-saturate(v.z-1000)));//use posWSy to remove more line holes

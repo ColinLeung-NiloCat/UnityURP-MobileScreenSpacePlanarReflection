@@ -4,7 +4,7 @@ using UnityEngine.Rendering.Universal;
 
 public class MobileSSPRRendererFeature : ScriptableRendererFeature
 {
-    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 and not more than 1 MobileSSPRRendererFeature
+    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 and not more than 1 MobileSSPRRendererFeature anyway
 
     [System.Serializable]
     public class PassSettings
@@ -12,13 +12,13 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Header("Settings")]
         public bool shouldRenderSSPR = true;
         public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
-        [Range(32, 1024)]
+        [Range(64, 1024)]
         public int RT_height = 512;
         [Range(0.01f, 1f)]
         public float fadeOutScreenBorderWidth = 0.5f;
-        [Range(0, 16)]
+        [Range(0, 4)]
         public int swapIteration = 2;
-        [Range(0, 16)]
+        [Range(0, 4)]
         public int fillHoleIteration = 1;
 
         [Header("Resources")]
@@ -29,9 +29,9 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     public class CustomRenderPass : ScriptableRenderPass
     {
         static readonly int _SSPR_ColorRT_pid = Shader.PropertyToID("_MobileSSPR_ColorRT");
-        static readonly int _SSPR_PosWSyRT_pid = Shader.PropertyToID("_MobileSSPR_PosWSyRT");
+        static readonly int _SSPR_PackedDataRT_pid = Shader.PropertyToID("_MobileSSPR_PackedDataRT");
         RenderTargetIdentifier _SSPR_ColorRT_rti = new RenderTargetIdentifier(_SSPR_ColorRT_pid);
-        RenderTargetIdentifier _SSPR_PosWSyRT_rti = new RenderTargetIdentifier(_SSPR_PosWSyRT_pid);
+        RenderTargetIdentifier _SSPR_PackedDataRT_rti = new RenderTargetIdentifier(_SSPR_PackedDataRT_pid);
         ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");//reflection plane renderer's material must use this LightMode
         const int SHADER_NUMTHREAD_X = 8;
         const int SHADER_NUMTHREAD_Y = 8;
@@ -72,7 +72,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
             //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
             rtd.colorFormat = RenderTextureFormat.ARGBHalf; //half instead of float will help mobile to cut down render cost(bandwidth cost/2)
-            cmd.GetTemporaryRT(_SSPR_PosWSyRT_pid, rtd);
+            cmd.GetTemporaryRT(_SSPR_PackedDataRT_pid, rtd);
         }
 
         // Here you can implement the rendering logic.
@@ -94,7 +94,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "ColorRT", _SSPR_ColorRT_rti);
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "PackedDataRT", _SSPR_PackedDataRT_rti);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
@@ -103,20 +103,20 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 //run exactly 2 iterations, running >2 iterations will not improve result much
                 for(int i = 0; i < settings.swapIteration; i++)
                 {
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PackedDataRT", _SSPR_PackedDataRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
                 //resolve to ColorRT (kernel #2)
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
-                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PackedDataRT", _SSPR_PackedDataRT_rti);
                 cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                 //fill RT hole (kernel #3),at least run once
                 for(int i = 0; i < settings.fillHoleIteration; i++)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 3, dispatchThreadGroupXCount, Mathf.CeilToInt(dispatchThreadGroupYCount/2f), dispatchThreadGroupZCount);
                 }
 
@@ -145,7 +145,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public override void FrameCleanup(CommandBuffer cmd)
         {
             cmd.ReleaseTemporaryRT(_SSPR_ColorRT_pid);
-            cmd.ReleaseTemporaryRT(_SSPR_PosWSyRT_pid);
+            cmd.ReleaseTemporaryRT(_SSPR_PackedDataRT_pid);
         }
     }
 
