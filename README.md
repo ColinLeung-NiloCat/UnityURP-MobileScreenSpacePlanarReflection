@@ -12,11 +12,9 @@
  ![screenshot](https://i.imgur.com/AZ08hZ8.png)
  
 On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
- - cost 1ms to update 128 height SSPR RT
- - cost 4ms to update 256 height SSPR RT
- - cost 11ms to update 512 height SSPR RT
- 
-
+ - cost <1ms to update 128 height SSPR RT (ForceFastestSinglePassColorResolve on)
+ - cost 1~2ms to update 256 height SSPR RT (ForceFastestSinglePassColorResolve on)
+ - cost 4~5ms to update 512 height SSPR RT (ForceFastestSinglePassColorResolve on)
  
  Where are the important files?
 -------------------
@@ -25,7 +23,7 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, should be alright if your android device support OpenGLES3.2 / Vulkan.
+ Tested on ~10 android devices, should be alright if your android device support Vulkan.
  
  How to try this in my own URP project?
  -------------------
