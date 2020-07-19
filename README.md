@@ -29,8 +29,8 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Where are the important files?
 -------------------
- There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".
-https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection/tree/master/Assets/_MobileSSPR/ReusableCore
+ There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".  
+https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection/tree/master/Assets/_MobileSSPR/ReusableCore  
  Other files are for demo only, not important.
  
  Can it run on mobile?
