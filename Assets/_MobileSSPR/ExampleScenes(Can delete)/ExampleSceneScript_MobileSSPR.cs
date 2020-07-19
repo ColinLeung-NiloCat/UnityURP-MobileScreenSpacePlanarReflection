@@ -16,12 +16,15 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
     int skyBoxIndex = 0;
     private void OnGUI()
     {
+        GUI.contentColor = Color.black;
         //show an On/OFF toggle, to check rendering SSPR_RT alone's net ms difference
         MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR = (GUI.Toggle(new Rect(200, 25, 100, 100), MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR, "SSPR on"));
 
         //show slider to control SSPR performance settings
         GUI.Label(new Rect(350, 25, 200, 25), $"ColorRT Height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");
-        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(550, 25, 200, 25), MobileSSPRRendererFeature.instance.Settings.RT_height, 128,1024));
+        MobileSSPRRendererFeature.instance.Settings.RT_height = (int)(GUI.HorizontalSlider(new Rect(550, 25, 200, 25), MobileSSPRRendererFeature.instance.Settings.RT_height/128, 1,8))*128;
+
+        MobileSSPRRendererFeature.instance.Settings.ApplyFillHoleFix = (GUI.Toggle(new Rect(550, 225, 200, 25), MobileSSPRRendererFeature.instance.Settings.ApplyFillHoleFix,"Apply Fill Hole Fix"));
 
         //view SSPR's result using different skyboxs
         if (GUI.Button(new Rect(200, 200, 100, 100), "SwitchSkyBox"))

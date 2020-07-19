@@ -21,14 +21,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Range(128, 1024)]
         [Tooltip("set to 512 is enough for sharp reflection")]
         public int RT_height = 512;
+        public bool ApplyFillHoleFix = true;
 
         [Header("Non Vulkan performance Setting")]
         [Range(0, 4)]
         [Tooltip("set to 2 can reduce most of UAV flicking")]
         public int swapIteration = 2;
-        [Range(0, 2)]
-        [Tooltip("set to 1 can fill most holes")]
-        public int fillHoleIteration = 1;
 
         [Header("Resources")]
         public ComputeShader SSPR_computeShader;
@@ -152,7 +150,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 }
 
                 //shared pass: fill RT hole (kernel #3),at least run once
-                for (int i = 0; i < settings.fillHoleIteration; i++)
+                if(settings.ApplyFillHoleFix)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
