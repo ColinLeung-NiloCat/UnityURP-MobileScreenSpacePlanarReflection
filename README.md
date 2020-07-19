@@ -1,6 +1,6 @@
 # UnityURP-MobileScreenSpacePlanarReflection
- ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.
- Can run within a few ms on most android mobile devices.
+ ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
+ cost 9ms on an Adreno612 GPU android mobile device(Samsubng Galaxy A70) to do all SSPR related calculations.  
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing
  
@@ -12,6 +12,7 @@
  ![screenshot](https://i.imgur.com/XvudHkR.png)
  SSPR OFF
  ![screenshot](https://i.imgur.com/AZ08hZ8.png)
+ 
  Where are the important files?
 -------------------
  There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".
@@ -34,9 +35,9 @@
  - assign this material to your new plane
  - DONE! You should see correct reflection both in scene and game window
 
- I can see some strength white/gray flicker in reflection
+ I can see some small flickering in reflection even camera and scene is not moving
  -------------------
- It is an expected artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile), currently I am looking  for a fast enough mobile solution to solve it. 
+ It is an expected artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile)
 see these for more detail: 
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
@@ -45,7 +46,7 @@ see these for more detail:
  -------------------
 This is a test project to see if screen space reflection & compute shader can run on mobile correctly and fast enough.   
 We need to avoid InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format Rfloat / RGFloat can be used on mobile devices.
+RenderTexture color format Rfloat / RGBAHalf can be used on mobile devices, we use this iunstead of uint.
  
  Editor
  -------------------
@@ -59,7 +60,6 @@ Implementation reference
 
 TODO
 ----------------
-- fix reflection result's holes (http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf)
 - make a new .hlsl to allow user apply this SSPR's result to their custom shader using 2 lines of code 
  
  
