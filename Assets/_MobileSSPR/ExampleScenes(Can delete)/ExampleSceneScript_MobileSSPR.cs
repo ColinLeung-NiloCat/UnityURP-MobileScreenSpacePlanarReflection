@@ -33,5 +33,8 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
         }
 
         GUI.Label(new Rect(200, 150, 100, 100), $"{(int)(Time.smoothDeltaTime * 1000)} ms ({ Mathf.CeilToInt(1f/Time.smoothDeltaTime)}fps)", new GUIStyle() { fontSize = 30 } );
+
+        GUI.Label(new Rect(900, 25, 200, 25), $"Rotate speed = {(int)rotationSpeed}");
+        rotationSpeed = (int)(GUI.HorizontalSlider(new Rect(1000, 25, 200, 25), rotationSpeed, 0, 45));
     }
 }
