@@ -19,7 +19,7 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  On Adreno506 GPU android mobile device(Lenovo S5), Toggle SSPR ON/OFF:
  - cost ~1ms to update 128 height SSPR RT (ForceFastestSinglePassColorResolve on)
- - cost 2~3ms to update 256 height SSPR RT (ForceFastestSinglePassColorResolve on)
+ - cost 3~4ms to update 256 height SSPR RT (ForceFastestSinglePassColorResolve on)
  - cost 7~8ms to update 512 height SSPR RT (ForceFastestSinglePassColorResolve on)
  
  Where are the important files?
