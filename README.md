@@ -2,6 +2,7 @@
  ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing
+
 On Adreno612 GPU android mobile device(Samsubng Galaxy A70) to do all SSPR related calculations:
  - cost 1ms to update 128 height SSPR RT
  - cost 4ms to update 256 height SSPR RT
