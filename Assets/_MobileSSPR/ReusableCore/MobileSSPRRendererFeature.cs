@@ -12,7 +12,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Header("Settings")]
         public bool shouldRenderSSPR = true;
         public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
-        [Range(0, 16)]
         [Range(32, 1024)]
         public int RT_height = 512;
         [Range(0.01f, 1f)]
