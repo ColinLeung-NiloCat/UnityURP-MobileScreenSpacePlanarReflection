@@ -1,3 +1,5 @@
+//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
+
 //just a simple shader to show how to use SSPR's result texture
 Shader "MobileSSPR/ExampleShader"
 {

@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
+
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ExampleSceneScript_MobileSSPR : MonoBehaviour

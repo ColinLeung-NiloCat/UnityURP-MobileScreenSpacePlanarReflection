@@ -1,3 +1,5 @@
+//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
+
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -123,7 +125,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, 3, dispatchThreadGroupXCount, Mathf.CeilToInt(dispatchThreadGroupYCount/2f), dispatchThreadGroupZCount);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount/1f), Mathf.CeilToInt(dispatchThreadGroupYCount/1f), dispatchThreadGroupZCount);
                 }
 
                 //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)
@@ -160,7 +162,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     public override void Create()
     {
         //we can't run without the correct compute shader, early exit if compute shader is null
-        if (!Settings.SSPR_computeShader) return;
+        if (!Settings.SSPR_computeShader)
+        {
+            Debug.LogWarning("You must assign MobileSSPRComputeShader to SSPR_computeShader slot! Abort SSPR rendering.");
+            return;
+        }
 
         instance = this;
 

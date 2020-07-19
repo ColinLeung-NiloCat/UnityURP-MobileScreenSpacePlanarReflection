@@ -1,4 +1,6 @@
-﻿//simplified mobile implementation of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP as a RendererFeature
+﻿//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
+
+//this is a mobile implementation of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP as a reusable RendererFeature
 //http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 
 //*we don't sample fallback reflection probe here, we sample it at user's shader (e.g. water plane shader)
@@ -8,12 +10,13 @@
 
 //common input from MobileSSPRRendererFeature
 RWTexture2D<half4> ColorRT;
-RWTexture2D<half4> PackedDataRT;
+RWTexture2D<half4> PackedDataRT; //xy = uvID in float, z = posWSy, w = alpha(SSPR usage%)
 float2 _RTSize;
 //common sample settings
 SamplerState PointClampSampler;
 SamplerState LinearClampSampler;
 
+//NUMTHREAD_X * NUMTHREAD_Y must be multiple of 64 and <= 256 to get balance between performance and mobile support, so we use 8*8
 #define NUMTHREAD_X 8
 #define NUMTHREAD_Y 8
 
@@ -25,9 +28,9 @@ SamplerState LinearClampSampler;
 Texture2D<half4> _CameraOpaqueTexture;
 Texture2D<float> _CameraDepthTexture;
 float _HorizontalPlaneHeightWS;
-float _FadeOutScreenBorderWidth; //compute shader can't declare half type float input? (can't build android). so use float now
+float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
 
-//for fadeout SSPR at _CameraOpaqueTextyure's uv boarder
+//box sdf function for fadeout SSPR at _CameraOpaqueTextyure's uv boarder
 //- p is screenUV
 //- b is box size
 //- box's center equals p space's center
@@ -38,19 +41,17 @@ half sdBox(half2 p, half2 b)
     return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
 }
 
-//numthreads x*y*z must = 1024 for maximum performance in SM5
-//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(NUMTHREAD_X,NUMTHREAD_Y,1)]
 void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 {
-    ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
-    PackedDataRT[uint2(id.xy)] = float4(0,0,99999,0);//a very high posWS.y as clear value
+    ColorRT[id.xy] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
+    PackedDataRT[id.xy] = float4(0,0,99999,0);//z: a very high posWS.y as clear value
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//prepare data
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	float2 screenUV = float2(id.x/(_RTSize.x),id.y/(_RTSize.y)); //[0,RTSize-1] -> screen [0,1] uv
-	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//rawDepth(posCS.z) in _CameraDepthTexture
+	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//get rawDepth(posCS.z) in _CameraDepthTexture
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//convert screenUV & _CameraDepthTexture's rawDepth(posCS.z) to posWS
@@ -82,16 +83,15 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	float4 reflectedPosCS = mul(UNITY_MATRIX_VP,float4(reflectedPosWS,1));//posWS -> posCS
 	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
 
-	float2 reflectedScreenUV = saturate(reflectedPosNDCxy * 0.5 + 0.5); //posNDC -> screen [0,1] uv, saturate to avoid out of bound access
+	float2 reflectedScreenUV = saturate(reflectedPosNDCxy * 0.5 + 0.5); //posNDC -> screen [0,1] uv, saturate() to avoid out of bound access
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, SSPR usage% in a
-	//write PackedDataRT[reflectedScreenUV] = inputPixelPosWS.y
+	//Output 3 type of data to PackedDataRT (see details below)
 	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 #if UNITY_UV_STARTS_AT_TOP
 	reflectedScreenUV.y = 1.0 - reflectedScreenUV.y;
 #endif
-	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize]
+	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
 
 	//smooth fadeout if pixel is near _CameraOpaqueTexture's uv border
 	half distanceToBorder = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
@@ -114,17 +114,16 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel Swap
 
-//numthreads x*y*z must = 1024 for maximum performance in SM5
-//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void Swap(uint3 id : SV_DispatchThreadID)
 {
 	float4 inputLocationReadValue = PackedDataRT[id.xy];
 	uint2 goTo = uint2(inputLocationReadValue.xy);
 
-	//using if() here can keep most of the correct data, still some flickering will exist but not much
+	//using if() here can rejuect incorrect write.
+	//still some flickering will remain but not much
 	if(PackedDataRT[goTo].z > inputLocationReadValue.z)
-		PackedDataRT[goTo] = float4(id.xy / _RTSize, inputLocationReadValue.zw);
+		PackedDataRT[goTo] = float4(id.xy, inputLocationReadValue.zw);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,15 +131,16 @@ void Swap(uint3 id : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel ResolveToColorRT
 
-//numthreads x*y*z must = 1024 for maximum performance in SM5
-//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 {
-	half4 v = PackedDataRT[id.xy];
+	half4 packedData = PackedDataRT[id.xy];
+	half2 sampleUV = packedData.xy / _RTSize;
+	half3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0).rgb;
+	half alpha = packedData.w * (1 - saturate(packedData.z - 1000));//use posWSy to remove more line holes
 
 	//write ColorRT's alpha = fadeout value, for user's shader
-	ColorRT[id.xy] = half4(_CameraOpaqueTexture.SampleLevel(LinearClampSampler, v.xy, 0).rgb,v.w * (1-saturate(v.z-1000)));//use posWSy to remove more line holes
+	ColorRT[id.xy] = half4(sampledColor, alpha);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,37 +148,25 @@ void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel FillHoles
 
-//numthreads x*y*z must = 1024 for maximum performance in SM5
-//https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void FillHoles(uint3 id : SV_DispatchThreadID)
 {
-	int count = 2;
-	id.y*=count;
-	//fill from top to middle
-	for(int y = 0 ; y < count ; y++)
+	//fill from top to bottom pixel
+	half4 center = ColorRT[id.xy + uint2(0,0)];
+	half4 bottom = ColorRT[id.xy + uint2(0,1)];
+	half4 right = ColorRT[id.xy + uint2(1, 0)];
+	half4 left = ColorRT[id.xy + uint2(-1, 0)];
+	//only fill holes
+	if (center.a > bottom.a + 0.5)
 	{
-		half4 top = ColorRT[id.xy + uint2(0,y)];
-		half4 bottom = ColorRT[id.xy + uint2(0,y+1)];
-		//only fill holes
-		if(top.a > bottom.a + 0.5)
-		{
-			ColorRT[id.xy + uint2(0,y+1)] = top;
-			//ColorRT[id.xy + uint2(0,y+1)] = (top+bottom)/2;
-			//ColorRT[id.xy + uint2(0,y+1)] = half4(lerp(bottom,top, saturate((1.0 - y/64.0)*2.0)));				
-		}
-
+		ColorRT[id.xy + uint2(0,1)] = center;
 	}
-
-	//not looking better for 16+16 top+bottom split fill
-	/*
-	//leak from bottom to middle
-	for(int y = 31 ; y >= 16 ; y--)
+	if (center.a > right.a + 0.5)
 	{
-		half4 top = ColorRT[id.xy + uint2(0,y)];
-		half4 bottom = ColorRT[id.xy + uint2(0,y+1)];
-		if(bottom.a > top.a + 0.1)
-			ColorRT[id.xy + uint2(0,y)] = bottom;	
+		ColorRT[id.xy + uint2(1, 0)] = center;
 	}
-	*/
+	if (center.a > left.a + 0.5)
+	{
+		ColorRT[id.xy + uint2(-1, 0)] = center;
+	}
 }
