@@ -23,7 +23,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public int RT_height = 512;
         public bool ApplyFillHoleFix = true;
 
-        [Header("Non Vulkan performance Setting")]
+        [Header("Non-Vulkan performance Setting")]
         [Range(0, 4)]
         [Tooltip("set to 2 can reduce most of UAV flicking")]
         public int swapIteration = 2;
