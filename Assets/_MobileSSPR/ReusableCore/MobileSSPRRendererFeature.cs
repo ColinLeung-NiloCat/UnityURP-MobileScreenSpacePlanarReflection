@@ -9,17 +9,18 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     [System.Serializable]
     public class PassSettings
     {
+        [Header("Settings")]
         public bool shouldRenderSSPR = true;
         public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
-
         [Range(0, 16)]
-        public int fillHoleIteration = 1;
-        [Range(0.01f,1f)]
-        public float fadeOutScreenBorderWidth = 0.5f;
-
         [Range(32, 1024)]
         public int RT_height = 512;
+        [Range(0.01f, 1f)]
+        public float fadeOutScreenBorderWidth = 0.5f;
+        [Range(0, 16)]
+        public int fillHoleIteration = 1;
 
+        [Header("Resources")]
         public ComputeShader SSPR_computeShader;
     }
     public PassSettings Settings = new PassSettings();
@@ -31,7 +32,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         RenderTargetIdentifier _SSPR_ColorRT_rti = new RenderTargetIdentifier(_SSPR_ColorRT_pid);
         RenderTargetIdentifier _SSPR_PosWSyRT_rti = new RenderTargetIdentifier(_SSPR_PosWSyRT_pid);
         ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");//reflection plane renderer's material must use this LightMode
-
+        const int SHADER_NUMTHREAD_X = 8;
+        const int SHADER_NUMTHREAD_Y = 8;
         public PassSettings settings;
 
         public CustomRenderPass(PassSettings settings)
@@ -43,12 +45,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
         int GetRTHeight()
         {
-            return Mathf.CeilToInt(settings.RT_height / 32f) * 32;
+            return Mathf.CeilToInt(settings.RT_height / (float)SHADER_NUMTHREAD_Y) * SHADER_NUMTHREAD_Y;
         }
         int GetRTWidth()
         {
             float aspect = (float)Screen.width / Screen.height;
-            return Mathf.CeilToInt(GetRTHeight() * aspect / 32f) * 32;
+            return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
         // This method is called before executing the render pass.
@@ -68,7 +70,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
-            rtd.colorFormat = RenderTextureFormat.ARGBHalf; //will help mobile to cut down render cost(bandwidth/2)
+            rtd.colorFormat = RenderTextureFormat.ARGBHalf; //half instead of float will help mobile to cut down render cost(bandwidth cost/2)
             cmd.GetTemporaryRT(_SSPR_PosWSyRT_pid, rtd);
         }
 
@@ -80,11 +82,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         {
             CommandBuffer cb = CommandBufferPool.Get("SSPR");
 
-            int dispatchThreadGroupXCount = Mathf.CeilToInt(GetRTWidth() / 32f);
-            int dispatchThreadGroupYCount = Mathf.CeilToInt(GetRTHeight() / 32f);
-            int dispatchThreadGroupZCount = 1;
-     
-            if(settings.shouldRenderSSPR)
+            int dispatchThreadGroupXCount = GetRTWidth() / SHADER_NUMTHREAD_X; //divide by shader's numthreads.x
+            int dispatchThreadGroupYCount = GetRTHeight() / SHADER_NUMTHREAD_Y; //divide by shader's numthreads.y
+            int dispatchThreadGroupZCount = 1; //divide by shader's numthreads.z
+
+            if (settings.shouldRenderSSPR)
             {
                 //draw RT (kernel #0) 
                 cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
@@ -96,24 +98,25 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
                 cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
-                //double swap (kernel #2)
+                //double swap to reduce 90% of the UAV flickering(kernel #1)
+                //run exactly 2 iterations, running >2 iterations will not improve result much
                 for(int i = 0; i < 2; i++)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PosWSyRT", _SSPR_PosWSyRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
-                //resolve ColorRT (kernel #1)
+                //resolve to ColorRT (kernel #2)
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
                 cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PosWSyRT", _SSPR_PosWSyRT_rti);
                 cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
-                //fill RT hole (kernel #3)
+                //fill RT hole (kernel #3),at least run once
                 for(int i = 0; i < settings.fillHoleIteration; i++)
                 {
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PosWSyRT", _SSPR_PosWSyRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, 3, dispatchThreadGroupXCount, Mathf.CeilToInt(dispatchThreadGroupYCount/2f), dispatchThreadGroupZCount);
+                    cb.DispatchCompute(settings.SSPR_computeShader, 3, dispatchThreadGroupXCount, Mathf.CeilToInt(dispatchThreadGroupYCount/32f), dispatchThreadGroupZCount);
                 }
 
                 //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)

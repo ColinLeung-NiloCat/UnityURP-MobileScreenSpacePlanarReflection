@@ -14,6 +14,9 @@ float2 _RTSize;
 SamplerState PointClampSampler;
 SamplerState LinearClampSampler;
 
+#define NUMTHREAD_X 8
+#define NUMTHREAD_Y 8
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel 0
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,7 +40,7 @@ half sdBox(half2 p, half2 b)
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32,32,1)]
+[numthreads(NUMTHREAD_X,NUMTHREAD_Y,1)]
 void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 {
     ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
@@ -91,8 +94,8 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize]
 
 	//smooth fadeout if pixel is near _CameraOpaqueTexture's uv border
-	float distanceToBorder = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
-	float fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth, distanceToBorder);
+	half distanceToBorder = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
+	half fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth, distanceToBorder);
 
 	//#######################################################################
 	//#######################################################################
@@ -107,35 +110,37 @@ void RenderSSPRRT (uint3 id : SV_DispatchThreadID)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel #1 (separate dispatch to force all threads finished their job first in kernel 0)
+// kernel #1 (separate dispatch to force all pixels finished their job first in kernel 0)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel Swap
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32, 32, 1)]
+[numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void Swap(uint3 id : SV_DispatchThreadID)
 {
 	float4 inputLocationReadValue = PosWSyRT[id.xy];
 	uint2 goTo = uint2(inputLocationReadValue.xy);
 
-	//using if here can keep most of the correct data, still some flickering will exist
+	//using if() here can keep most of the correct data, still some flickering will exist but not much
 	if(PosWSyRT[goTo].z > inputLocationReadValue.z)
 		PosWSyRT[goTo] = float4(id.xy / _RTSize, inputLocationReadValue.zw);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel 2 (separate dispatch to force all threads finished their job first in kernel 0)
+// kernel 2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel ResolveToColorRT
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32, 32, 1)]
+[numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 {
-	float4 v = PosWSyRT[id.xy];
-	ColorRT[id.xy] = half4(_CameraOpaqueTexture.SampleLevel(LinearClampSampler, v.xy, 0).rgb,v.w * (1-saturate(v.z-1000))); //keep alpha = fadeout value, but not _CameraOpaqueTexture's a 
+	half4 v = PosWSyRT[id.xy];
+
+	//write ColorRT's alpha = fadeout value, for user's shader
+	ColorRT[id.xy] = half4(_CameraOpaqueTexture.SampleLevel(LinearClampSampler, v.xy, 0).rgb,v.w * (1-saturate(v.z-1000)));//use posWSy to remove more line holes
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,16 +150,17 @@ void ResolveToColorRT(uint3 id : SV_DispatchThreadID)
 
 //numthreads x*y*z must = 1024 for maximum performance in SM5
 //https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads
-[numthreads(32, 16, 1)]
+[numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void FillHoles(uint3 id : SV_DispatchThreadID)
 {
-	int count = 2;
+	int count = 32;
 	id.y*=count;
-	//leak from top to middle
+	//fill from top to middle
 	for(int y = 0 ; y < count ; y++)
 	{
 		half4 top = ColorRT[id.xy + uint2(0,y)];
 		half4 bottom = ColorRT[id.xy + uint2(0,y+1)];
+		//only fill holes
 		if(top.a > bottom.a + 0.5)
 		{
 			ColorRT[id.xy + uint2(0,y+1)] = top;
