@@ -12,6 +12,11 @@
  SSPR OFF
  ![screenshot](https://i.imgur.com/AZ08hZ8.png)
  
+On Adreno630 GPU android mobile device(almost all 2019/2020 flagship android mobiles), Toggle SSPR ON/OFF:
+ - cost <1ms to update 128 height SSPR RT
+ - cost <1ms to update 256 height SSPR RT
+ - cost 1~2ms to update 512 height SSPR RT  
+ 
 On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  - cost <1ms to update 128 height SSPR RT
  - cost 1~2ms to update 256 height SSPR RT
@@ -24,12 +29,14 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Where are the important files?
 -------------------
- There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".
+ There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".  
+https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection/tree/master/Assets/_MobileSSPR/ReusableCore  
  Other files are for demo only, not important.
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices, result should be correct and rendering is fast enough, if your android device support Vulkan. (OpenGLES3.2 is not enough!)
+ Tested on ~10 android devices(support Vulkan).
+ If your android device support Vulkan, result should be correct and rendering should be fast enough. (OpenGLES3.2 is not enough, must support Vulkan!)
  
  How to try this in my own URP project?
  -------------------
@@ -50,12 +57,16 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
 see these for more detail: 
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
+
+ I can see some small flickering in reflection in build
+ -------------------
+It is not expected! Please report your android device name in Issues, thanks!
  
  Notes
  -------------------
 This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
-We can not use InterlockedMin and RenderTexture color format "uint" to support mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-RenderTexture color format RFloat / ARGBHalf can be used on mobile devices, we use these instead of uint RT.
+We can not use InterlockedMin and RenderTexture color format "uint" on mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
+Instead, we will use RenderTexture color format RFloat / ARGBHalf.
  
  Editor
  -------------------
