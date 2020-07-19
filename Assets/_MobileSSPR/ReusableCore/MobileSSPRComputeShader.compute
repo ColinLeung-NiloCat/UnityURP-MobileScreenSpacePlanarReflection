@@ -11,6 +11,8 @@
 //common input from MobileSSPRRendererFeature
 RWTexture2D<half4> ColorRT;
 RWTexture2D<half4> PackedDataRT; //xy = uvID in float, z = posWSy, w = alpha(SSPR usage%)
+RWTexture2D<float> PosWSyRT;
+
 float2 _RTSize;
 //common sample settings
 SamplerState PointClampSampler;
@@ -171,4 +173,88 @@ void FillHoles(uint3 id : SV_DispatchThreadID)
 	ColorRT[id.xy + uint2(0,1)] = best.a > right.a + 0.5 ? best : right;
 	ColorRT[id.xy + uint2(1,0)] = best.a > bottom.a + 0.5 ? best : bottom;
 	ColorRT[id.xy + uint2(1,1)] = best.a > bottomRight.a + 0.5 ? best : bottomRight;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel #4 (Mobile singe pass ColorRT resolve)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel SinglePassRenderSSPRRT
+
+[numthreads(NUMTHREAD_X,NUMTHREAD_Y,1)]
+void SinglePassRenderSSPRRT (uint3 id : SV_DispatchThreadID)
+{
+	
+    ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
+    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//prepare data
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float2 screenUV = float2(id.x/(_RTSize.x-1),id.y/(_RTSize.y-1)); //[0,RTSize-1] -> screen [0,1] uv
+	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//rawDepth(posCS.z) in _CameraDepthTexture
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//convert screenUV & _CameraDepthTexture's rawDepth(posCS.z) to posWS
+	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L75
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float4 posCS = float4(screenUV * 2.0 - 1.0, inputPixelRawDepth, 1.0); //reconstruct posCS using screen [0,1] uv & rawDepth
+	float4 posHWS = mul(UNITY_MATRIX_I_VP, posCS); //posCS -> posHWS
+	float3 posWS = posHWS.xyz / posHWS.w; //posHWS -> posWS
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//if posWS is already under reflection plane (e.g. under water plane), 
+	//it will never be a correct color to reflect anyway, early exit to prevent wrong result write to Color RT
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	if(posWS.y <= _HorizontalPlaneHeightWS)
+		return;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//mirror posWS according to horizontal reflection plane (e.g. water plane)
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float3 reflectedPosWS = posWS;
+	reflectedPosWS.y -= _HorizontalPlaneHeightWS;
+	reflectedPosWS.y *= -1;//actual reflect action
+	reflectedPosWS.y += _HorizontalPlaneHeightWS;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//find reflected posWS's new screenUV
+	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L87
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	float4 reflectedPosCS = mul(UNITY_MATRIX_VP,float4(reflectedPosWS,1));//posWS -> posCS
+	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
+
+	//early exit if non valid uv anymore, to avoid out of bound access
+	float2 absNDC = abs(reflectedPosNDCxy);
+	if(absNDC.x >= 1 || absNDC.y >= 1) return;
+
+	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen [0,1] uv
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	//write ColorRT[reflectedScreenUV] = inputPixelOpaqueColor in rgb, SSPR usage% in a
+	//write PosWSyRT[reflectedScreenUV] = inputPixelPosWS.y
+	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+#if UNITY_UV_STARTS_AT_TOP
+	reflectedScreenUV.y = 1.0 - reflectedScreenUV.y;
+#endif
+	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize]
+	
+	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
+	//here we only allow "closer to horizontal reflection plane's candidate" to write to ColorRT & PosWSyRT.
+	//At the end, only the "closest to horizontal reflection plane candidate" will remain in ColorRT & PosWSyRT, which is the correct reflection data
+	if(posWS.y < PosWSyRT[reflectedScreenID])
+	{
+		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
+
+		//smooth fadeout if pixel is near _CameraOpaqueTexture's uv border
+		half d = abs(sdBox(screenUV*2-1, half2(1,1)));//make 0,0 as box's center to use sdBox(...) function
+		half fadeoutAlpha = smoothstep(0, _FadeOutScreenBorderWidth,d);
+
+		//we write the following data to 2 RTs:
+		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage %)
+		//-PosWSyRT.r = current lowest PosyWS (concept similar to a regular depth buffer ZTest->ZWrite)
+		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
+		PosWSyRT[reflectedScreenID] = posWS.y;
+	}
+
 }

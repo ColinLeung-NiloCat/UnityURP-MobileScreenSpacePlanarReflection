@@ -42,7 +42,7 @@ Material:
     m_Floats:
     - _Move: 0
     - _NoiseIntensity: -0.0074
-    - _Roughness: 0.1
+    - _Roughness: 0
     - _SSPR_NoiseIntensity: 0.05
     - _UV_MoveSpeed: 0
     m_Colors:
