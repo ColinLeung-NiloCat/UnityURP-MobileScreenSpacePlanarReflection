@@ -171,7 +171,11 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	uint projectionHash = SrcPosPixel.y << 16 | SrcPosPixel.x; 
 	InterlockedMax(ProjectionHashUAV[ReflPosPixel], projectionHash, dontCare);
 	*/
-	uint hash = id.y << 16 | id.x;
+	float2 screenUV = id.xy / _RTSize;
+	half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV);
+
+	uint fadeoutAlphaInt = fadeoutAlpha * 255;//8 bit
+	uint hash = id.y << 20 | id.x << 8 | fadeoutAlphaInt;
 	InterlockedMin(HashRT[reflectedScreenID],hash); //correct sorting method
 	//HashRT[reflectedScreenID] = hash; //no sorting method, don't use it, it will produce random flickering because of unknown orderewrite
 }
@@ -210,13 +214,16 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 		ColorRT[id.xy] = 0;
 		return;
 	}	
-	uint2 sampleID = uint2(packedData & 0xFFFF, packedData >> 16); //unpack from 32bit uint, to 16bit x & 16bit y
+	uint2 sampleID = uint2((packedData >> 8) & 0xFFF, packedData >> 20); //unpack from 32bit uint, to 12bit y & 12bit x & 8bit alpha
+	uint alphaAsInt = packedData & 0xFF;
+	half alphaAsFloatingPoint = alphaAsInt / 255.0;
+
 	float2 sampleUV = sampleID.xy / _RTSize;
 	float3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0);
 
 	//write ColorRT's alpha = 1 for now
 	//TODO: write fadeout to alpha
-	ColorRT[id.xy] = float4(sampledColor, 1);
+	ColorRT[id.xy] = float4(sampledColor, alphaAsFloatingPoint);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
