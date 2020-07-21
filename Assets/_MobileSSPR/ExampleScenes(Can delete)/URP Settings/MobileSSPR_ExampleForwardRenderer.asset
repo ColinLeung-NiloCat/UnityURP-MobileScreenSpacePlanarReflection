@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-8199872503701979644
+--- !u!114 &-4326965709138838915
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -22,7 +22,7 @@ MonoBehaviour:
     UseHDR: 1
     ApplyFillHoleFix: 1
     RemoveFlickerIfPlatformSupported: 1
-    EnablePerPlatformSafeGuard: 1
+    EnablePerPlatformSafeGuard: 0
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -36,8 +36,8 @@ MonoBehaviour:
   m_Name: MobileSSPR_ExampleForwardRenderer
   m_EditorClassIdentifier: 
   m_RendererFeatures:
-  - {fileID: -8199872503701979644}
-  m_RendererFeatureMap: 04be59156733348e
+  - {fileID: -4326965709138838915}
+  m_RendererFeatureMap: 7dba7bdf9c87f3c3
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   shaders:
     blitPS: {fileID: 4800000, guid: c17132b1f77d20942aa75f8429c0f8bc, type: 3}

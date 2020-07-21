@@ -22,6 +22,7 @@ SamplerState LinearClampSampler;
 float2 _RTSize;
 float _HorizontalPlaneHeightWS;
 float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
+float3 _CameraDirection;
 
 //common texture input from MobileSSPRRendererFeature.cs
 RWTexture2D<half4> ColorRT;
@@ -85,17 +86,19 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 
 	ReflPosUV.x *= 1 + HeightStretch * AngleStretch * ScreenStretch * Intensity;
 	*/
-	float Threshold = .75;
-	float Intensity = -0;
 
-	float HeightStretch = (reflectedPosWS.y - _HorizontalPlaneHeightWS);
-	float AngleStretch = 1;// saturate(-CameraDirection.z);
+	//TODO: better fill LeftRight
+	float Threshold = 0.5;
+	float Intensity = 2.0;
+
+	float HeightStretch = abs(reflectedPosWS.y - _HorizontalPlaneHeightWS);
+	float AngleStretch = saturate(abs(_CameraDirection.y));
 	float ScreenStretch = saturate(abs(reflectedScreenUV.x * 2 - 1) - Threshold);
 
 	reflectedScreenUV.x = reflectedScreenUV.x * 2 - 1;
 	reflectedScreenUV.x *= 1 + HeightStretch * AngleStretch * ScreenStretch * Intensity;
-	reflectedScreenUV.x = reflectedScreenUV.x * 0.5 + 0.5;
-
+	reflectedScreenUV.x = saturate(reflectedScreenUV.x * 0.5 + 0.5);
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//flip UV according to platform 
 	//ref: https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L95
@@ -106,10 +109,11 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 
 	return reflectedScreenUV;
 }
-half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV)
+half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV, float reflectedPosWSy)
 {
 	//only fadeout  using vertical (only fadeout if reaching _CameraOpaqueTexture's uv border top)
 	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidth, screenUV.y);
+	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidth * abs(reflectedPosWSy * 1.0), abs(screenUV.x * 2 - 1));
 	return fadeoutAlpha;
 }
 
@@ -143,7 +147,7 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	//if posWS is already under reflection plane (e.g. under water plane), 
 	//it will never be a correct color to reflect anyway, early exit to prevent wrong result write to Color RT
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	if (posWS.y <= _HorizontalPlaneHeightWS)
+	if(posWS.y <= _HorizontalPlaneHeightWS)
 		return;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,7 +184,7 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	//-then  12 bits for id.x (0~4095)
 	//-last  8  bits for alpha (0~255)
 	float2 screenUV = id.xy / _RTSize;
-	half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV);
+	half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV, reflectedPosWS.y);
 
 	uint fadeoutAlphaInt = fadeoutAlpha * 255;//8 bit
 	uint hash = id.y << 20 | id.x << 8 | fadeoutAlphaInt; //pack 3 uint into 1
@@ -275,8 +279,8 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 	//ConvertReflectedPosWSToScreenID
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	float2 reflectedScreenUV = ConvertReflectedPosWSToScreenUV(reflectedPosWS);
-	//early exit if non valid uv anymore, to avoid out of bound access
-	float2 earlyExitTest = abs(reflectedScreenUV-0.5);
+	//early exit if not valid uv anymore, to avoid out of bound access
+	float2 earlyExitTest = abs(reflectedScreenUV - 0.5);
 	if (earlyExitTest.x >= 0.5 || earlyExitTest.y >= 0.5) 
 		return;
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
@@ -289,7 +293,7 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 		float2 screenUV = id.xy / _RTSize;
 		half3 inputPixelSceneColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, screenUV, 0).rgb;
 
-		half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV);
+		half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV, reflectedPosWS.y);
 
 		//we write the following data to 2 RTs:
 		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage %)

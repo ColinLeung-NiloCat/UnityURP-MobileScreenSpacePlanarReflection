@@ -144,6 +144,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeVectorParam(cs, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
                 cb.SetComputeFloatParam(cs, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(cs, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
+                cb.SetComputeVectorParam(cs, Shader.PropertyToID("_CameraDirection"), renderingData.cameraData.camera.transform.forward);
 
                 if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 {
