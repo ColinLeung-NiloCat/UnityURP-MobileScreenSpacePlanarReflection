@@ -41,11 +41,10 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
  How to try this in my own URP project?
  -------------------
  - copy "Assets \ _MobileSSPR \ ReusableCore" folder to your project (contains 3 important code files)
- - turn on "Depth Texture" in your project's URP's setting
- - turn on "Opaque Texture" in your project's URP's setting
+ - turn on "Depth Texture" in all your project's URP's setting
+ - turn on "Opaque Texture" in all your project's URP's setting
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
- - assign MobileSSPRComputeShader to this new RendererFeature's "compute shader" slot
- - set horizontalReflectionPlaneHeightWS to 0.01 in this new RendererFeature
+ 
  - create a new plane game object in your scene (set world space pos y = 0.01)
  - create a material using MobileSSPRExampleShader
  - assign this material to your new plane
