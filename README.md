@@ -38,6 +38,7 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
 -------------------
  Tested on ~10 android devices(all support Vulkan).
  If your android device support Vulkan, result should be correct and rendering should be fast enough. (OpenGLES3.2 is not enough, must support Vulkan!)
+   
  *We have received a report that this SSPR is not working on MaliT760 GPU android (Galaxy S6), but we don't have this device to reproduce it
  
  How to try this inside my own URP project?
