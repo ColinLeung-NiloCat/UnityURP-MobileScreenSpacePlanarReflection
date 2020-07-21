@@ -18,7 +18,7 @@ public class ExampleSceneScript_MobileSSPR : MonoBehaviour
     {
         GUI.contentColor = Color.black;
         //show an On/OFF toggle, to check rendering SSPR_RT alone's net ms difference
-        MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR = (GUI.Toggle(new Rect(200, 25, 100, 100), MobileSSPRRendererFeature.instance.Settings.shouldRenderSSPR, "SSPR on"));
+        MobileSSPRRendererFeature.instance.Settings.ShouldRenderSSPR = (GUI.Toggle(new Rect(200, 25, 100, 100), MobileSSPRRendererFeature.instance.Settings.ShouldRenderSSPR, "SSPR on"));
 
         //show slider to control SSPR performance settings
         GUI.Label(new Rect(350, 25, 200, 25), $"ColorRT Height = {MobileSSPRRendererFeature.instance.Settings.RT_height}");

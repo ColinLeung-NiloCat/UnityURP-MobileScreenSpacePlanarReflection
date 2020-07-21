@@ -51,11 +51,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Active: 1
   Settings:
-    shouldRenderSSPR: 1
-    horizontalReflectionPlaneHeightWS: 0.01
-    fadeOutScreenBorderWidth: 0.5
+    ShouldRenderSSPR: 1
+    HorizontalReflectionPlaneHeightWS: 0.01
+    FadeOutScreenBorderWidth: 0.01
+    TintColor: {r: 1, g: 1, b: 1, a: 1}
     RT_height: 512
+    UseHDR: 1
     ApplyFillHoleFix: 1
-    swapIteration: 2
     SSPR_computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3,
       type: 3}
+    UseSinglePassUnsafeDirectResolve: 1

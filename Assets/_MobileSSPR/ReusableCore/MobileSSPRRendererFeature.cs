@@ -6,30 +6,34 @@ using UnityEngine.Rendering.Universal;
 
 public class MobileSSPRRendererFeature : ScriptableRendererFeature
 {
-    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 and not more than 1 MobileSSPRRendererFeature anyway
+    public static MobileSSPRRendererFeature instance; //for example scene to call, user should add 1 and not more than 1 MobileSSPRRendererFeature anyway so it is safe to use static ref
 
     [System.Serializable]
     public class PassSettings
     {
         [Header("Settings")]
-        public bool shouldRenderSSPR = true;
-        public float horizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
+        public bool ShouldRenderSSPR = true;
+        public float HorizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
         [Range(0.01f, 1f)]
-        public float fadeOutScreenBorderWidth = 0.5f;
+        public float FadeOutScreenBorderWidth = 0.5f;
+        public Color TintColor = Color.white;
 
-        [Header("General Performance Settings")]
+        //////////////////////////////////////////////////////////////////////////////////
+        [Header("Performance Settings")]
         [Range(128, 1024)]
-        [Tooltip("set to 512 is enough for sharp reflection")]
+        [Tooltip("set to 512 or below for better performance, if visual quality lost is acceptable")]
         public int RT_height = 512;
+        [Tooltip("can set to false for better performance, if visual quality lost is acceptable")]
+        public bool UseHDR = true;
+        [Tooltip("can set to false for better performance, if visual quality lost is acceptable")]
         public bool ApplyFillHoleFix = true;
 
-        [Header("Non-Vulkan performance Setting")]
-        [Range(0, 4)]
-        [Tooltip("set to 2 can reduce most of UAV flicking")]
-        public int swapIteration = 2;
-
+        //////////////////////////////////////////////////////////////////////////////////
         [Header("Resources")]
         public ComputeShader SSPR_computeShader;
+
+        [Header("Debug")]
+        public bool UseSinglePassUnsafeDirectResolve = true;
     }
     public PassSettings Settings = new PassSettings();
 
@@ -41,7 +45,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         RenderTargetIdentifier _SSPR_ColorRT_rti = new RenderTargetIdentifier(_SSPR_ColorRT_pid);
         RenderTargetIdentifier _SSPR_PackedDataRT_rti = new RenderTargetIdentifier(_SSPR_PackedDataRT_pid);
         RenderTargetIdentifier _SSPR_PosWSyRT_rti = new RenderTargetIdentifier(_SSPR_PosWSyRT_pid);
-
 
         ShaderTagId lightMode_SSPR_sti = new ShaderTagId("MobileSSPR");//reflection plane renderer's material's shader must use this LightMode
 
@@ -65,9 +68,13 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
-        bool ShouldUseVulkanFastPath()
+        bool ShouldUseMobileSinglePassUnsafeDirectResolve()
         {
-            return SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan;
+            //On mobile, force use SinglePassUnsafeDirectResolve, because RInt RT is not support
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3 || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal)
+                return true;
+
+            return settings.UseSinglePassUnsafeDirectResolve;
         }
         // This method is called before executing the render pass.
         // It can be used to configure render targets and their clear state. Also to create temporary render target textures.
@@ -82,19 +89,24 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             rtd.enableRandomWrite = true; //using RWTexture2D in compute shader need to turn on this
 
             //color RT
-            rtd.colorFormat = RenderTextureFormat.ARGB32; //we need alpha! (LDR is enough, ignore HDR is acceptable for reflection)
+            bool shouldUseHDRColorRT = settings.UseHDR;
+            if (cameraTextureDescriptor.colorFormat == RenderTextureFormat.ARGB32)
+                shouldUseHDRColorRT = false;// if there are no HDR info to reflect anyway, no need a HDR colorRT
+            rtd.colorFormat = shouldUseHDRColorRT ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB32; //we need alpha! (usually LDR is enough, ignore HDR is acceptable for reflection)
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //PackedData RT
-            if(ShouldUseVulkanFastPath())
+            if (ShouldUseMobileSinglePassUnsafeDirectResolve())
             {
+                //use unsafe method if mobile
                 //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
                 rtd.colorFormat = RenderTextureFormat.RFloat;
                 cmd.GetTemporaryRT(_SSPR_PosWSyRT_pid, rtd);
             }
             else
             {
-                rtd.colorFormat = RenderTextureFormat.ARGBHalf; //half instead of float will help mobile to cut down render cost(bandwidth cost/2)
+                //use 100% correct method if console/PC
+                rtd.colorFormat = RenderTextureFormat.RInt;
                 cmd.GetTemporaryRT(_SSPR_PackedDataRT_pid, rtd);
             }
         }
@@ -111,54 +123,63 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             int dispatchThreadGroupYCount = GetRTHeight() / SHADER_NUMTHREAD_Y; //divide by shader's numthreads.y
             int dispatchThreadGroupZCount = 1; //divide by shader's numthreads.z
 
-            if (settings.shouldRenderSSPR)
+            if (settings.ShouldRenderSSPR)
             {
                 cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
-                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.horizontalReflectionPlaneHeightWS);
-                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.fadeOutScreenBorderWidth);
+                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
+                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
 
-                if (!ShouldUseVulkanFastPath())
+                if (!ShouldUseMobileSinglePassUnsafeDirectResolve())
                 {
-                    //draw RT (kernel #0) 
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 0, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
-                    cb.DispatchCompute(settings.SSPR_computeShader, 0, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    ////////////////////////
+                    //Non-Mobile Path
+                    ////////////////////////
 
-                    //double swap to reduce 90% of the UAV flickering(kernel #1)
-                    //run exactly 2 iterations, running >2 iterations will not improve result much
-                    for (int i = 0; i < settings.swapIteration; i++)
-                    {
-                        cb.SetComputeTextureParam(settings.SSPR_computeShader, 1, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                        cb.DispatchCompute(settings.SSPR_computeShader, 1, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-                    }
+                    //kernel ClearToZero
+                    int kernel_ClearToZero = settings.SSPR_computeShader.FindKernel("ClearToZero");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_ClearToZero, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_ClearToZero, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_ClearToZero, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
-                    //resolve to ColorRT (kernel #2)
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 2, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, 2, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    //kernel NonMobilePathRenderHashRT
+                    int kernel_NonMobilePathRenderHashRT = settings.SSPR_computeShader.FindKernel("NonMobilePathRenderHashRT");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+
+                    //resolve to ColorRT
+                    int kernel_NonMobilePathResolveColorRT = settings.SSPR_computeShader.FindKernel("NonMobilePathResolveColorRT");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
                 else
                 {
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "PosWSyRT", _SSPR_PosWSyRT_rti);
-
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 4, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
-                    cb.DispatchCompute(settings.SSPR_computeShader, 4, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    ////////////////////////
+                    //Mobiel Path
+                    ////////////////////////
+                    
+                    //kernel MobilePathsinglePassColorRTDirectResolve
+                    int kernel_MobilePathSinglePassColorRTDirectResolve = settings.SSPR_computeShader.FindKernel("MobilePathSinglePassColorRTDirectResolve");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
-                //shared pass: fill RT hole (kernel #3),at least run once
+                //optional shared pass to improve result only: fill RT hole
                 if(settings.ApplyFillHoleFix)
                 {
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, 3, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, 3, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
+                    int kernel_FillHoles = settings.SSPR_computeShader.FindKernel("FillHoles");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_FillHoles, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_FillHoles, "PackedDataRT", _SSPR_PackedDataRT_rti);
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_FillHoles, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
                 }
 
-                //send out to global, for user's shader to sample  reflection result RT (_MobileSSPR_ColorRT)
-                //where _MobileSSPR_ColorRT's rgb is reflection color, a is reflection usage 0~1 for lerp with fallback reflection probe's rgb
+                //send out to global, for user's shader to sample reflection result RT (_MobileSSPR_ColorRT)
+                //where _MobileSSPR_ColorRT's rgb is reflection color, a is reflection usage 0~1 for user's shader to lerp with fallback reflection probe's rgb
                 cb.SetGlobalTexture(_SSPR_ColorRT_pid, _SSPR_ColorRT_rti);
                 cb.EnableShaderKeyword("_MobileSSPR");
             }
@@ -183,7 +204,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         {
             cmd.ReleaseTemporaryRT(_SSPR_ColorRT_pid);
 
-            if(ShouldUseVulkanFastPath())
+            if(ShouldUseMobileSinglePassUnsafeDirectResolve())
                 cmd.ReleaseTemporaryRT(_SSPR_PosWSyRT_pid);
             else
                 cmd.ReleaseTemporaryRT(_SSPR_PackedDataRT_pid);
