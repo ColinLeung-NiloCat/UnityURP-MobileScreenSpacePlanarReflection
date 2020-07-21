@@ -88,6 +88,7 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 #define NUMTHREAD_X 8
 #define NUMTHREAD_Y 8
 
+#define MAX_UINT 4294967295
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel ClearToZero
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,7 +97,7 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void ClearToZero(uint3 id : SV_DispatchThreadID)
 {
-	HashRT[id.xy] = +4294967295; //max value as clear 
+	HashRT[id.xy] = MAX_UINT; //max value as clear 
 	ColorRT[uint2(id.xy)] = half4(0, 0, 0, 0);
 }
 
@@ -174,7 +175,7 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 	}
 	*/
 	uint packedData = HashRT[id.xy];	
-	if (packedData == 0)
+	if (packedData == MAX_UINT)
 	{
 		ColorRT[id.xy] = 0;
 		return;
