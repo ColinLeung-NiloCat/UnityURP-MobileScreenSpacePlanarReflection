@@ -27,13 +27,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public bool UseHDR = true;
         [Tooltip("can set to false for better performance, if visual quality lost is acceptable")]
         public bool ApplyFillHoleFix = true;
+        [Tooltip("can set to false for better performance, if flickering is acceptable")]
+        public bool RemoveFlickerIfPlatformSupported = true;
 
         //////////////////////////////////////////////////////////////////////////////////
         [Header("Resources")]
         public ComputeShader SSPR_computeShader;
-
-        [Header("Debug")]
-        public bool UseSinglePassUnsafeDirectResolve = true;
     }
     public PassSettings Settings = new PassSettings();
 
@@ -74,7 +73,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3 || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal)
                 return true;
 
-            return settings.UseSinglePassUnsafeDirectResolve;
+            return !settings.RemoveFlickerIfPlatformSupported;
         }
         // This method is called before executing the render pass.
         // It can be used to configure render targets and their clear state. Also to create temporary render target textures.

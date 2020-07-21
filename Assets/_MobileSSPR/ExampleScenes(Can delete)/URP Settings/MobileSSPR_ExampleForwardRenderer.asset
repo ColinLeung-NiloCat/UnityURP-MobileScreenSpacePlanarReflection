@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: MobileSSPR_ExampleForwardRenderer
   m_EditorClassIdentifier: 
   m_RendererFeatures:
-  - {fileID: 8713681931606214549}
-  m_RendererFeatureMap: 95c720bb8c37ed78
+  - {fileID: 8897066699005018131}
+  m_RendererFeatureMap: 13c0262906bb787b
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   shaders:
     blitPS: {fileID: 4800000, guid: c17132b1f77d20942aa75f8429c0f8bc, type: 3}
@@ -37,7 +37,7 @@ MonoBehaviour:
     failOperation: 0
     zFailOperation: 0
   m_ShadowTransparentReceive: 0
---- !u!114 &8713681931606214549
+--- !u!114 &8897066699005018131
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -58,5 +58,6 @@ MonoBehaviour:
     RT_height: 512
     UseHDR: 1
     ApplyFillHoleFix: 1
-    SSPR_computeShader: {fileID: 0}
-    UseSinglePassUnsafeDirectResolve: 1
+    RemoveFlickerIfPlatformSupported: 1
+    SSPR_computeShader: {fileID: 7200000, guid: 07c79ca1bcd69d84cafeb19534a40fc3,
+      type: 3}
