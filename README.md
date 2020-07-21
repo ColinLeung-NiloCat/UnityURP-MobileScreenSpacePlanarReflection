@@ -1,5 +1,6 @@
 # UnityURP-MobileScreenSpacePlanarReflection
- A simple and fast mobile(vulkan) ScreenSpacePlanarReflection(SSPR) as a reusable RendererFeature in URP.  
+ A simple and fast ScreenSpacePlanarReflection(SSPR) as a standalone reusable RendererFeature in URP.  
+ Can run on PC/console/vulkan android, other platforms not tested but should work if compute shader is supported. 
  - See runtime video here: https://youtu.be/Cy46A8EyX4Q
  - download pre-built .apk here: https://drive.google.com/file/d/14Z_Gjb1ADz8RhcBgAFpa96dm-oQuOyQx/view?usp=sharing  
  
@@ -12,7 +13,7 @@
  SSPR OFF
  ![screenshot](https://i.imgur.com/AZ08hZ8.png)
  
-On Adreno630 GPU android mobile device(almost all 2019/2020 flagship android mobiles), Toggle SSPR ON/OFF:
+On Adreno630 GPU android mobile device(almost all 2018/2019 flagship android mobiles), Toggle SSPR ON/OFF:
  - cost <1ms to update 128 height SSPR RT
  - cost <1ms to update 256 height SSPR RT
  - cost 1~2ms to update 512 height SSPR RT  
@@ -35,21 +36,21 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
  
  Can it run on mobile?
 -------------------
- Tested on ~10 android devices(support Vulkan).
+ Tested on ~10 android devices(all support Vulkan).
  If your android device support Vulkan, result should be correct and rendering should be fast enough. (OpenGLES3.2 is not enough, must support Vulkan!)
- *We have received a report that this SSPR is not working on MaliT760 GPU android (Galaxy S6), but we don't have this device to test it
+ *We have received a report that this SSPR is not working on MaliT760 GPU android (Galaxy S6), but we don't have this device to reproduce it
  
- How to try this in my own URP project?
+ How to try this inside my own URP project?
  -------------------
  - copy "Assets \ _MobileSSPR \ ReusableCore" folder to your project (contains 3 important code files)
  - turn on "Depth Texture" in all your project's URP's setting
  - turn on "Opaque Texture" in all your project's URP's setting
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
- 
+   
  - create a new plane game object in your scene (set world space pos y = 0.01)
  - create a material using MobileSSPRExampleShader.shader
  - assign this material to your new plane
- 
+   
  - DONE! You should see correct reflection both in scene and game window
 
  I can see some small flickering in reflection even camera and scene is not moving in Editor, but not in build
@@ -59,15 +60,14 @@ see these for more detail:
  - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
  - https://zhuanlan.zhihu.com/p/150890059
 
- I can see some small flickering in reflection in build
+ I can see some small flickering in reflection / can't see any reflection in build
  -------------------
-It is not expected! Please report your android device name in Issues, thanks!
+It is not expected! Please report your device name in Issues, thanks!
  
  Notes
- -------------------
-This is a test project to see if screen space planar reflection & compute shader can run on Vulkan mobile correctly and fast enough.   
-We can not use InterlockedMin and RenderTexture color format "uint" on mobile (see -> https://zhuanlan.zhihu.com/p/150890059). 
-Instead, we will use RenderTexture color format RFloat / ARGBHalf.
+ -------------------  
+We can not use InterlockedMin and RenderTexture color format "RInt" on android (see -> https://zhuanlan.zhihu.com/p/150890059). 
+Instead, we will use RenderTexture color format RFloat / ARGBHalf to emulate the implementation.
  
  Editor
  -------------------
