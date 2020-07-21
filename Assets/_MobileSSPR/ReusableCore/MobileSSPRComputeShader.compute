@@ -1,32 +1,43 @@
 ﻿//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
 
-//this is a Mobile + NonMobile implementations of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP using RendererFeature
+//this is a Mobile + NonMobile 2 way implementations of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP using RendererFeature
 //http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 
 //*we don't sample fallback reflection probe here, we sample it inside user's shader (e.g. water plane shader)
 //because Lighting data provided by URP (e.g. reflection probe) is only correct when rendering using normal drawing method, but not correct in compute shader
 
+//NUMTHREAD_X * NUMTHREAD_Y must be multiple of 64 and <= 256 to balance between performance and mobile support, so we use 8*8
+#define NUMTHREAD_X 8
+#define NUMTHREAD_Y 8
+
+#define MAX_UINT 4294967295
+
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-//common input from MobileSSPRRendererFeature.cs
-RWTexture2D<half4> ColorRT;
-Texture2D<half4> _CameraOpaqueTexture;
-Texture2D<float> _CameraDepthTexture;
-
-float2 _RTSize;
-float _HorizontalPlaneHeightWS;
-float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
 
 //common SamplerState settings
 SamplerState PointClampSampler;
 SamplerState LinearClampSampler;
 
-//Non-Mobile path will use this RT: single uint split first 16bits for copyColorFromID's y, last 16bits for copyColorFromID's x
+//common uniform
+float2 _RTSize;
+float _HorizontalPlaneHeightWS;
+float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
+
+//common texture input from MobileSSPRRendererFeature.cs
+RWTexture2D<half4> ColorRT;
+Texture2D<half4> _CameraOpaqueTexture;
+Texture2D<float> _CameraDepthTexture;
+
+//Non-Mobile path will use this RT: single 32bits uint split first 16bits for GetReflectionColorFromID's y, last 16bits for GetReflectionColorFromID's x
+//y first because we want to sort by InterlockedMin()
 RWTexture2D<uint> HashRT; 
 
-//Mobile(Vulkan) path will use this RT: single float for posWSy
+//Mobile(Android) path will use this RT: single float for posWSy
 RWTexture2D<float> PosWSyRT;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// shared functions
+////////////////////////////////////////////////////////////////////////////////////////////////////
 float3 ConvertScreenIDToPosWS(uint2 id)
 {
 	float2 screenUV = float2(id.x / (_RTSize.x), id.y / (_RTSize.y)); //[0,RTSize-1] -> screen [0,1] uv
@@ -101,25 +112,21 @@ half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV)
 	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidth, screenUV.y);
 	return fadeoutAlpha;
 }
-//NUMTHREAD_X * NUMTHREAD_Y must be multiple of 64 and <= 256 to balance between performance and mobile support, so we use 8*8
-#define NUMTHREAD_X 8
-#define NUMTHREAD_Y 8
 
-#define MAX_UINT 4294967295
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel ClearToZero
+// kernel: ClearToZero
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel ClearToZero
 
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void ClearToZero(uint3 id : SV_DispatchThreadID)
 {
-	HashRT[id.xy] = MAX_UINT; //max value as clear 
+	HashRT[id.xy] = MAX_UINT; //max value as clear, because we want to sort by InterlockedMin()
 	ColorRT[uint2(id.xy)] = half4(0, 0, 0, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel NonMobilePathRenderHashRT
+// kernel: NonMobilePathRenderHashRT
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma kernel NonMobilePathRenderHashRT
 
@@ -147,22 +154,26 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	//ConvertReflectedPosWSToScreenID
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	float2 reflectedScreenUV = ConvertReflectedPosWSToScreenUV(reflectedPosWS);
-	//early exit if non valid uv anymore, to avoid out of bound access
+	//early exit if not valid uv anymore, to avoid out of bound access
 	float2 earlyExitTest = abs(reflectedScreenUV - 0.5);
 	if (earlyExitTest.x >= 0.5 || earlyExitTest.y >= 0.5)
 		return;
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//write "original RT position" at "reflected RT position"
+	//write "original RT position ID.xy as hash" at "reflected RT position"
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//ref: http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
-	// Read-write max when accessing the projection hash UAV //sample code from above site, "Hash resolve" section
-	//uint projectionHash = SrcPosPixel.y << 16 | SrcPosPixel.x; //sample code from above site, "Hash resolve" section
-	//InterlockedMax(ProjectionHashUAV[ReflPosPixel], projectionHash, dontCare); //sample code from above site, "Hash resolve" section
+	/*
+	ref: http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/#hash-resolve-jump
+	Read-write max when accessing the projection hash UAV
+
+	//sample code from above site, "Hash resolve" section
+	uint projectionHash = SrcPosPixel.y << 16 | SrcPosPixel.x; 
+	InterlockedMax(ProjectionHashUAV[ReflPosPixel], projectionHash, dontCare);
+	*/
 	uint hash = id.y << 16 | id.x;
 	InterlockedMin(HashRT[reflectedScreenID],hash); //correct sorting method
-	//HashRT[reflectedScreenID] = hash; //no sorting method
+	//HashRT[reflectedScreenID] = hash; //no sorting method, don't use it, it will produce random flickering because of unknown orderewrite
 }
 
 
@@ -174,9 +185,10 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
 void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 {
+	/*
 	//ref code
 	//http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/#hash-resolve-jump
-	/*
+	
 	float4 PS_ResolveHash(float2 ScreenUV) : SV_Target0
 	{
 		uint Hash = ProjectionHashTex[ScreenUV * FrameSize].x;
@@ -194,14 +206,16 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 	uint packedData = HashRT[id.xy];	
 	if (packedData == MAX_UINT)
 	{
+		//if this location is not having any reflection data (still containing clear value), early exit to prevent wrong RT write
 		ColorRT[id.xy] = 0;
 		return;
 	}	
-	uint2 sampleID = uint2(packedData & 0xFFFF, packedData >> 16);
+	uint2 sampleID = uint2(packedData & 0xFFFF, packedData >> 16); //unpack from 32bit uint, to 16bit x & 16bit y
 	float2 sampleUV = sampleID.xy / _RTSize;
 	float3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0);
 
 	//write ColorRT's alpha = 1 for now
+	//TODO: write fadeout to alpha
 	ColorRT[id.xy] = float4(sampledColor, 1);
 }
 
@@ -216,7 +230,7 @@ void FillHoles(uint3 id : SV_DispatchThreadID)
 	//fill holes inside each 2*2
 	id.xy *= 2;
 
-	//read to cache
+	//cache read
 	half4 center = ColorRT[id.xy + uint2(0,0)];
 	half4 right = ColorRT[id.xy + uint2(0,1)];
 	half4 bottom = ColorRT[id.xy + uint2(1,0)];
@@ -247,7 +261,7 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 	//Clear
 	////////////////////////////////////////////////////////////////////////////////////////////////////
     ColorRT[uint2(id.xy)] = half4(0,0,0,0);//black rgb and alpha = 0. alpha 0 means no valid SSPR pixels found, so reflection plane will not use SSRP's result     
-    PosWSyRT[uint2(id.xy)] = 99999;//a very high posWS.y as clear value
+    PosWSyRT[uint2(id.xy)] = 9999999;//a very high posWS.y as clear value
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//ConvertScreenIDToPosWS

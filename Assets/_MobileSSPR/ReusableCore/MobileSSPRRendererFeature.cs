@@ -33,6 +33,9 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         //////////////////////////////////////////////////////////////////////////////////
         [Header("Resources")]
         public ComputeShader SSPR_computeShader;
+
+        [Header("Danger Zone")]
+        public bool EnablePerPlatformSafeGuard = true;
     }
     public PassSettings Settings = new PassSettings();
 
@@ -67,12 +70,26 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
-        bool ShouldUseMobileSinglePassUnsafeDirectResolve()
+        bool ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve()
         {
-            //On mobile, force use SinglePassUnsafeDirectResolve, because RInt RT is not support
-            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3 || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal)
+            if (settings.EnablePerPlatformSafeGuard)
+            {
+                //force use MobilePathSinglePassColorRTDirectResolve, if RInt RT is not supported
+                if (!SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RInt))
+                    return true;
+#if UNITY_ANDROID
+                //- samsung galaxy A70(Adreno612) will fail if use RenderTextureFormat.RInt + InterlockedMin() in compute shader
+                //- but Lenovo S5(Adreno506) is correct, WTF???
+                //because behavior is different across android devices, we assume all android are not safe to use RenderTextureFormat.RInt + InterlockedMin() in compute shader
                 return true;
+#endif
 
+#if UNITY_IOS
+                //we don't know the answer now, need to build test
+#endif
+            }
+
+            //let user decide if we still don't know the correct answer
             return !settings.RemoveFlickerIfPlatformSupported;
         }
         // This method is called before executing the render pass.
@@ -95,7 +112,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             cmd.GetTemporaryRT(_SSPR_ColorRT_pid, rtd);
 
             //PackedData RT
-            if (ShouldUseMobileSinglePassUnsafeDirectResolve())
+            if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
             {
                 //use unsafe method if mobile
                 //posWSy RT (will use this RT for posWSy compare test, just like the concept of regular depth buffer)
@@ -128,11 +145,26 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
                 cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
 
-                if (!ShouldUseMobileSinglePassUnsafeDirectResolve())
+                if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 {
-                    ////////////////////////
-                    //Non-Mobile Path
-                    ////////////////////////
+                    ////////////////////////////////////////////////
+                    //Android Path
+                    ////////////////////////////////////////////////
+
+                    //kernel MobilePathsinglePassColorRTDirectResolve
+                    int kernel_MobilePathSinglePassColorRTDirectResolve = settings.SSPR_computeShader.FindKernel("MobilePathSinglePassColorRTDirectResolve");
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+
+                }
+                else
+                {
+                    ////////////////////////////////////////////////
+                    //Non-Android Path (PC/console..)
+                    ////////////////////////////////////////////////
 
                     //kernel ClearToZero
                     int kernel_ClearToZero = settings.SSPR_computeShader.FindKernel("ClearToZero");
@@ -152,20 +184,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "ColorRT", _SSPR_ColorRT_rti);
                     cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "HashRT", _SSPR_PackedDataRT_rti);
                     cb.DispatchCompute(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
-                }
-                else
-                {
-                    ////////////////////////
-                    //Mobiel Path
-                    ////////////////////////
-                    
-                    //kernel MobilePathsinglePassColorRTDirectResolve
-                    int kernel_MobilePathSinglePassColorRTDirectResolve = settings.SSPR_computeShader.FindKernel("MobilePathSinglePassColorRTDirectResolve");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "PosWSyRT", _SSPR_PosWSyRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
                 //optional shared pass to improve result only: fill RT hole
@@ -203,7 +221,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         {
             cmd.ReleaseTemporaryRT(_SSPR_ColorRT_pid);
 
-            if(ShouldUseMobileSinglePassUnsafeDirectResolve())
+            if(ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 cmd.ReleaseTemporaryRT(_SSPR_PosWSyRT_pid);
             else
                 cmd.ReleaseTemporaryRT(_SSPR_PackedDataRT_pid);
