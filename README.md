@@ -46,8 +46,9 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
  
  - create a new plane game object in your scene (set world space pos y = 0.01)
- - create a material using MobileSSPRExampleShader
+ - create a material using MobileSSPRExampleShader.shader
  - assign this material to your new plane
+ 
  - DONE! You should see correct reflection both in scene and game window
 
  I can see some small flickering in reflection even camera and scene is not moving in Editor, but not in build
