@@ -31,10 +31,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public bool RemoveFlickerIfPlatformSupported = true;
 
         //////////////////////////////////////////////////////////////////////////////////
-        [Header("Resources")]
-        public ComputeShader SSPR_computeShader;
-
         [Header("Danger Zone")]
+        [Tooltip("If on, will produce flickering, but ensure safe rendering on android platform")]
         public bool EnablePerPlatformSafeGuard = true;
     }
     public PassSettings Settings = new PassSettings();
@@ -54,10 +52,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         const int SHADER_NUMTHREAD_Y = 8; //must match compute shader's [numthread(y)]
 
         PassSettings settings;
-
+        ComputeShader cs;
         public CustomRenderPass(PassSettings settings)
         {
             this.settings = settings;
+
+            cs = (ComputeShader)Resources.Load("MobileSSPRComputeShader");
         }
 
         int GetRTHeight()
@@ -141,9 +141,9 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
             if (settings.ShouldRenderSSPR)
             {
-                cb.SetComputeVectorParam(settings.SSPR_computeShader, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
-                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
-                cb.SetComputeFloatParam(settings.SSPR_computeShader, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
+                cb.SetComputeVectorParam(cs, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
 
                 if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 {
@@ -152,12 +152,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     ////////////////////////////////////////////////
 
                     //kernel MobilePathsinglePassColorRTDirectResolve
-                    int kernel_MobilePathSinglePassColorRTDirectResolve = settings.SSPR_computeShader.FindKernel("MobilePathSinglePassColorRTDirectResolve");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "PosWSyRT", _SSPR_PosWSyRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_MobilePathSinglePassColorRTDirectResolve, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    int kernel_MobilePathSinglePassColorRTDirectResolve = cs.FindKernel("MobilePathSinglePassColorRTDirectResolve");
+                    cb.SetComputeTextureParam(cs, kernel_MobilePathSinglePassColorRTDirectResolve, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_MobilePathSinglePassColorRTDirectResolve, "PosWSyRT", _SSPR_PosWSyRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                    cb.SetComputeTextureParam(cs, kernel_MobilePathSinglePassColorRTDirectResolve, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                    cb.DispatchCompute(cs, kernel_MobilePathSinglePassColorRTDirectResolve, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                 }
                 else
@@ -166,33 +166,33 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     //Non-Android Path (PC/console..)
                     ////////////////////////////////////////////////
 
-                    //kernel ClearToZero
-                    int kernel_ClearToZero = settings.SSPR_computeShader.FindKernel("ClearToZero");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_ClearToZero, "HashRT", _SSPR_PackedDataRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_ClearToZero, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_ClearToZero, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    //kernel NonMobileClearToZero
+                    int kernel_NonMobileClearToZero = cs.FindKernel("NonMobileClearToZero");
+                    cb.SetComputeTextureParam(cs, kernel_NonMobileClearToZero, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_NonMobileClearToZero, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.DispatchCompute(cs, kernel_NonMobileClearToZero, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                     //kernel NonMobilePathRenderHashRT
-                    int kernel_NonMobilePathRenderHashRT = settings.SSPR_computeShader.FindKernel("NonMobilePathRenderHashRT");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, "HashRT", _SSPR_PackedDataRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_NonMobilePathRenderHashRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    int kernel_NonMobilePathRenderHashRT = cs.FindKernel("NonMobilePathRenderHashRT");
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathRenderHashRT, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathRenderHashRT, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+                    cb.DispatchCompute(cs, kernel_NonMobilePathRenderHashRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                     //resolve to ColorRT
-                    int kernel_NonMobilePathResolveColorRT = settings.SSPR_computeShader.FindKernel("NonMobilePathResolveColorRT");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, "HashRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_NonMobilePathResolveColorRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    int kernel_NonMobilePathResolveColorRT = cs.FindKernel("NonMobilePathResolveColorRT");
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathResolveColorRT, "_CameraOpaqueTexture", new RenderTargetIdentifier("_CameraOpaqueTexture"));
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathResolveColorRT, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathResolveColorRT, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.DispatchCompute(cs, kernel_NonMobilePathResolveColorRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
                 }
 
                 //optional shared pass to improve result only: fill RT hole
                 if(settings.ApplyFillHoleFix)
                 {
-                    int kernel_FillHoles = settings.SSPR_computeShader.FindKernel("FillHoles");
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_FillHoles, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.SetComputeTextureParam(settings.SSPR_computeShader, kernel_FillHoles, "PackedDataRT", _SSPR_PackedDataRT_rti);
-                    cb.DispatchCompute(settings.SSPR_computeShader, kernel_FillHoles, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
+                    int kernel_FillHoles = cs.FindKernel("FillHoles");
+                    cb.SetComputeTextureParam(cs, kernel_FillHoles, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_FillHoles, "PackedDataRT", _SSPR_PackedDataRT_rti);
+                    cb.DispatchCompute(cs, kernel_FillHoles, Mathf.CeilToInt(dispatchThreadGroupXCount / 2f), Mathf.CeilToInt(dispatchThreadGroupYCount / 2f), dispatchThreadGroupZCount);
                 }
 
                 //send out to global, for user's shader to sample reflection result RT (_MobileSSPR_ColorRT)
@@ -232,13 +232,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
     public override void Create()
     {
-        //we can't run without the correct compute shader, early exit if compute shader is null
-        if (!Settings.SSPR_computeShader)
-        {
-            Debug.LogWarning("You must assign MobileSSPRComputeShader to SSPR_computeShader slot! Abort SSPR rendering.");
-            return;
-        }
-
         instance = this;
 
         m_ScriptablePass = new CustomRenderPass(Settings);
@@ -251,8 +244,6 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        if (!Settings.SSPR_computeShader) return;
-
         renderer.EnqueuePass(m_ScriptablePass);
     }
 }

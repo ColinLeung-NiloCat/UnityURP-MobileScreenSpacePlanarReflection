@@ -114,16 +114,17 @@ half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel: ClearToZero
+// kernel: NonMobileClearToZero
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel ClearToZero
+#pragma kernel NonMobileClearToZero
 
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
-void ClearToZero(uint3 id : SV_DispatchThreadID)
+void NonMobileClearToZero(uint3 id : SV_DispatchThreadID)
 {
 	HashRT[id.xy] = MAX_UINT; //max value as clear, because we want to sort by InterlockedMin()
 	ColorRT[uint2(id.xy)] = half4(0, 0, 0, 0);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel: NonMobilePathRenderHashRT
@@ -161,7 +162,7 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//write "original RT position ID.xy as hash" at "reflected RT position"
+	//write "original RT position ID.xy and alpha" as "12bit y,12bit x, 8bit alpha" hash at location "reflected RT position"
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	/*
 	ref: http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/#hash-resolve-jump
@@ -171,13 +172,20 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	uint projectionHash = SrcPosPixel.y << 16 | SrcPosPixel.x; 
 	InterlockedMax(ProjectionHashUAV[ReflPosPixel], projectionHash, dontCare);
 	*/
+
+	//ghost-recon-wildlands method use 16bit y, 16bit x encode
+	//but in our implementation, 16bit is overkill because we don't need a RT that is 65536*65536
+	//so we save 8 bits for fadeout alpha info, result in:
+	//-first 12 bits for id.y (0~4095)
+	//-then  12 bits for id.x (0~4095)
+	//-last  8  bits for alpha (0~255)
 	float2 screenUV = id.xy / _RTSize;
 	half fadeoutAlpha = ConvertOpaqueColorRTScreenUVToFadeAlphaParam(screenUV);
 
 	uint fadeoutAlphaInt = fadeoutAlpha * 255;//8 bit
-	uint hash = id.y << 20 | id.x << 8 | fadeoutAlphaInt;
-	InterlockedMin(HashRT[reflectedScreenID],hash); //correct sorting method
-	//HashRT[reflectedScreenID] = hash; //no sorting method, don't use it, it will produce random flickering because of unknown orderewrite
+	uint hash = id.y << 20 | id.x << 8 | fadeoutAlphaInt; //pack 3 uint into 1
+	InterlockedMin(HashRT[reflectedScreenID],hash); //correct sorting method, sort by id.y
+	//HashRT[reflectedScreenID] = hash; //no sorting method, don't use it, it will produce random flickering because of unknown order write(random order)
 }
 
 
@@ -210,51 +218,27 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 	uint packedData = HashRT[id.xy];	
 	if (packedData == MAX_UINT)
 	{
-		//if this location is not having any reflection data (still containing clear value), early exit to prevent wrong RT write
+		//if this location is not having any reflection data (still containing clear value, still 0 reflection write), early exit to prevent wrong RT write
 		ColorRT[id.xy] = 0;
 		return;
 	}	
-	uint2 sampleID = uint2((packedData >> 8) & 0xFFF, packedData >> 20); //unpack from 32bit uint, to 12bit y & 12bit x & 8bit alpha
+
+	//ghost-recon-wildlands method use 16bit y, 16bit x encode
+	//but in our implementation, 16bit is overkill because we don't need a RT that is 65536*65536
+	//so we save 8 bits for fadeout alpha info, result in:
+	//-first 12 bits for id.y (0~4095)
+	//-then  12 bits for id.x (0~4095)
+	//-last  8  bits for alpha (0~255)
+	uint2 sampleID = uint2((packedData >> 8) & 0xFFF, packedData >> 20); //decode from single 32bit uint, to 3 separated uint (12bit y & 12bit x & 8bit alpha)
 	uint alphaAsInt = packedData & 0xFF;
 	half alphaAsFloatingPoint = alphaAsInt / 255.0;
 
 	float2 sampleUV = sampleID.xy / _RTSize;
-	float3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0);
+	half3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0);
 
-	//write ColorRT's alpha = 1 for now
-	//TODO: write fadeout to alpha
 	ColorRT[id.xy] = float4(sampledColor, alphaAsFloatingPoint);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel FillHoles
-////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel FillHoles
-
-[numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
-void FillHoles(uint3 id : SV_DispatchThreadID)
-{	
-	//fill holes inside each 2*2
-	id.xy *= 2;
-
-	//cache read
-	half4 center = ColorRT[id.xy + uint2(0,0)];
-	half4 right = ColorRT[id.xy + uint2(0,1)];
-	half4 bottom = ColorRT[id.xy + uint2(1,0)];
-	half4 bottomRight = ColorRT[id.xy + uint2(1,1)];
-	
-	//find best inside 2*2
-	half4 best = center;
-	best = right.a > best.a + 0.5 ? right : best;
-	best = bottom.a > best.a + 0.5 ? bottom : best;
-	best = bottomRight.a > best.a + 0.5 ? bottomRight : best;
-
-	//write better rgba
-	ColorRT[id.xy + uint2(0,0)] = best.a > center.a + 0.5 ? best : center;
-	ColorRT[id.xy + uint2(0,1)] = best.a > right.a + 0.5 ? best : right;
-	ColorRT[id.xy + uint2(1,0)] = best.a > bottom.a + 0.5 ? best : bottom;
-	ColorRT[id.xy + uint2(1,1)] = best.a > bottomRight.a + 0.5 ? best : bottomRight;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // kernel MobilePathSinglePassColorRTDirectResolve
@@ -313,4 +297,35 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// kernel FillHoles
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma kernel FillHoles
+
+[numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
+void FillHoles(uint3 id : SV_DispatchThreadID)
+{
+	//fill holes inside each 2*2
+	id.xy *= 2;
+
+	//cache read
+	half4 center = ColorRT[id.xy + uint2(0, 0)];
+	half4 right = ColorRT[id.xy + uint2(0, 1)];
+	half4 bottom = ColorRT[id.xy + uint2(1, 0)];
+	half4 bottomRight = ColorRT[id.xy + uint2(1, 1)];
+
+	//find best inside 2*2
+	half4 best = center;
+	best = right.a > best.a + 0.5 ? right : best;
+	best = bottom.a > best.a + 0.5 ? bottom : best;
+	best = bottomRight.a > best.a + 0.5 ? bottomRight : best;
+
+	//write better rgba
+	ColorRT[id.xy + uint2(0, 0)] = best.a > center.a + 0.5 ? best : center;
+	ColorRT[id.xy + uint2(0, 1)] = best.a > right.a + 0.5 ? best : right;
+	ColorRT[id.xy + uint2(1, 0)] = best.a > bottom.a + 0.5 ? best : bottom;
+	ColorRT[id.xy + uint2(1, 1)] = best.a > bottomRight.a + 0.5 ? best : bottomRight;
 }
