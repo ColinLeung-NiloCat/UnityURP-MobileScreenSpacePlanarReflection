@@ -1,6 +1,6 @@
 ﻿//see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
 
-//this is a Mobile + NonMobile 2 way implementations of "Screen Space Planar Reflections in Ghost Recon Wildlands" in Unity URP using RendererFeature
+//this is Mobile + Non-Mobile separated implementations of "Screen Space Planar Reflections in Ghost Recon Wildlands" using a single URP RendererFeature
 //http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/
 
 //*we don't sample fallback reflection probe here, we sample it inside user's shader (e.g. water plane shader)
@@ -18,7 +18,7 @@
 SamplerState PointClampSampler;
 SamplerState LinearClampSampler;
 
-//common uniform
+//common uniform input from MobileSSPRRendererFeature.cs
 float2 _RTSize;
 float _HorizontalPlaneHeightWS;
 float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
@@ -29,11 +29,11 @@ RWTexture2D<half4> ColorRT;
 Texture2D<half4> _CameraOpaqueTexture;
 Texture2D<float> _CameraDepthTexture;
 
-//Non-Mobile path will use this RT: single 32bits uint split first 16bits for GetReflectionColorFromID's y, last 16bits for GetReflectionColorFromID's x
-//y first because we want to sort by InterlockedMin()
+//Non-Mobile path will use this RT: single 32bits RInt RT, split first 16bits for GetReflectionColorFromID's y, last 16bits for GetReflectionColorFromID's x
+//y put in first 16 bits because we want to sort by InterlockedMin(), allowing only "closer to reflection plane candidate" to write to HashRT
 RWTexture2D<uint> HashRT; 
 
-//Mobile(Android) path will use this RT: single float for posWSy
+//Mobile(Android) path will use this RT: single 32bit float for posWSy
 RWTexture2D<float> PosWSyRT;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +41,7 @@ RWTexture2D<float> PosWSyRT;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float3 ConvertScreenIDToPosWS(uint2 id)
 {
+	//input id is compute function's input SV_DispatchThreadID
 	float2 screenUV = float2(id.x / (_RTSize.x), id.y / (_RTSize.y)); //[0,RTSize-1] -> screen [0,1] uv
 	float inputPixelRawDepth = _CameraDepthTexture.SampleLevel(PointClampSampler, screenUV, 0);//get rawDepth(posCS.z) in _CameraDepthTexture
 
@@ -111,19 +112,21 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 }
 half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV, float reflectedPosWSy)
 {
-	//only fadeout  using vertical (only fadeout if reaching _CameraOpaqueTexture's uv border top)
+	//fadeout  using vertical uv.y (only fadeout if reaching _CameraOpaqueTexture's uv border top)
 	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidth, screenUV.y);
+	//fadeout using horizontal uv.x
+	//TODO: better fadeout
 	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidth * abs(reflectedPosWSy * 1.0), abs(screenUV.x * 2 - 1));
 	return fadeoutAlpha;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel: NonMobileClearToZero
+// kernel: NonMobileClear
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel NonMobileClearToZero
+#pragma kernel NonMobileClear
 
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
-void NonMobileClearToZero(uint3 id : SV_DispatchThreadID)
+void NonMobileClear(uint3 id : SV_DispatchThreadID)
 {
 	HashRT[id.xy] = MAX_UINT; //max value as clear, because we want to sort by InterlockedMin()
 	ColorRT[uint2(id.xy)] = half4(0, 0, 0, 0);
