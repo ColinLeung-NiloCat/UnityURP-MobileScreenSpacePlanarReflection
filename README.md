@@ -30,7 +30,7 @@ On Adreno612 GPU android mobile device(Samsung Galaxy A70), Toggle SSPR ON/OFF:
  
  Where are the important files?
 -------------------
- There are only 3 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".  
+ There are only 4 important code files, all inside a folder "Assets \ _MobileSSPR \ ReusableCore".  
 https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection/tree/master/Assets/_MobileSSPR/ReusableCore  
  Other files are for demo only, not important.
  
@@ -43,7 +43,7 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
  
  How to try this inside my own URP project?
  -------------------
- - copy "Assets \ _MobileSSPR \ ReusableCore" folder to your project (contains 3 important code files)
+ - copy "Assets \ _MobileSSPR \ ReusableCore" folder to your project (contains 4 important code files)
  - turn on "Depth Texture" in all your project's URP's setting
  - turn on "Opaque Texture" in all your project's URP's setting
  - Add MobileSSPRRendererFeature(RendererFeature) to your forward renderer asset
@@ -54,21 +54,14 @@ https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
    
  - DONE! You should see correct reflection both in scene and game window
 
- I can see some small flickering in reflection even camera and scene is not moving in Editor, but not in build
- -------------------
- It is an expected editor artifact of this mobile screen space planar reflection implementation(because we can't use InterlockedMin and uint RenderTexture on mobile)
-see these for more detail: 
- - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
- - https://zhuanlan.zhihu.com/p/150890059
-
- I can see some small flickering in reflection / can't see any reflection in build
+ I can see some small flickering in reflection / can't see any reflection
  -------------------
 It is not expected! Please report your device name in Issues, thanks!
  
  Notes
  -------------------  
-We can not use InterlockedMin and RenderTexture color format "RInt" on android (see -> https://zhuanlan.zhihu.com/p/150890059). 
-Instead, we will use RenderTexture color format RFloat / ARGBHalf to emulate the implementation.
+It is not safe to use InterlockedMin() and RenderTexture color format "RInt" on android compute shader(see -> https://zhuanlan.zhihu.com/p/150890059). 
+Instead, we will use RenderTexture color format RFloat / ARGBHalf to produce the same result.
  
  Editor
  -------------------
@@ -80,9 +73,3 @@ Implementation reference
 - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 - https://zhuanlan.zhihu.com/p/150890059
 - https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections
-
-TODO
-----------------
-- make a new .hlsl to allow user apply this SSPR's result to their custom shader using 2 lines of code 
- 
- 
