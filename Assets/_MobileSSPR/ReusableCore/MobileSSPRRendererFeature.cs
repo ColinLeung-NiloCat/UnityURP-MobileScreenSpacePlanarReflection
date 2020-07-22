@@ -23,7 +23,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Range(-1f,1f)]
         public float ScreenLRStretchThreshold = 0.7f;
         [ColorUsage(true,true)]
-        public Color TintColor = new Color(0.75f,0.75f,0.75f,1);
+        public Color TintColor = Color.white;
 
         //////////////////////////////////////////////////////////////////////////////////
         [Header("Performance Settings")]

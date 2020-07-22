@@ -57,7 +57,7 @@ MonoBehaviour:
     FadeOutScreenBorderWidthHorizontal: 0.35
     ScreenLRStretchIntensity: 4
     ScreenLRStretchThreshold: 0.7
-    TintColor: {r: 0.75, g: 0.75, b: 0.75, a: 1}
+    TintColor: {r: 1, g: 1, b: 1, a: 1}
     RT_height: 512
     UseHDR: 1
     ApplyFillHoleFix: 1

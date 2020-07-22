@@ -1,6 +1,6 @@
 //see README here: https://github.com/ColinLeung-NiloCat/UnityURP-MobileScreenSpacePlanarReflection
 
-//just a simple shader to show how to use SSPR's result texture
+//just a simple example shader to show how to use SSPR's result texture
 Shader "MobileSSPR/ExampleShader"
 {
     Properties
@@ -9,28 +9,31 @@ Shader "MobileSSPR/ExampleShader"
         [MainTexture] _BaseMap("BaseMap", 2D) = "black" {}
 
         _Roughness("_Roughness", range(0,1)) = 0.25 
-        _SSPR_UVNoiseTex("_SSPR_UVNoiseTex", 2D) = "gray" {}
+        [NoScaleOffset]_SSPR_UVNoiseTex("_SSPR_UVNoiseTex", 2D) = "gray" {}
         _SSPR_NoiseIntensity("_SSPR_NoiseIntensity", range(-0.2,0.2)) = 0.0
 
         _UV_MoveSpeed("_UV_MoveSpeed (xy only)(for things like water flow)", Vector) = (0,0,0,0)
 
-        _ReflectionAreaTex("_ReflectionArea", 2D) = "white" {}
+        [NoScaleOffset]_ReflectionAreaTex("_ReflectionArea", 2D) = "white" {}
     }
 
     SubShader
     {
         Pass
         {
+            //================================================================================================
             //if "LightMode"="MobileSSPR", this shader will only draw if MobileSSPRRendererFeature is on
             Tags { "LightMode"="MobileSSPR" }
+            //================================================================================================
 
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             
+            //================================================================================================
+            #include "MobileSSPRInclude.hlsl"
             #pragma multi_compile _ _MobileSSPR
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            //================================================================================================
 
             struct Attributes
             {
@@ -50,11 +53,10 @@ Shader "MobileSSPR/ExampleShader"
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
             
-            TEXTURE2D(_MobileSSPR_ColorRT);
-            sampler LinearClampSampler;
-
-            sampler2D _SSPR_UVNoiseTex;
-            sampler2D _ReflectionAreaTex;
+            TEXTURE2D(_SSPR_UVNoiseTex);
+            SAMPLER(sampler_SSPR_UVNoiseTex);
+            TEXTURE2D(_ReflectionAreaTex);
+            SAMPLER(sampler_ReflectionAreaTex);
 
             //cbuffer
             CBUFFER_START(UnityPerMaterial)
@@ -69,7 +71,7 @@ Shader "MobileSSPR/ExampleShader"
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap)+ _Time.y*_UV_MoveSpeed;
+                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap) + _Time.y*_UV_MoveSpeed;
                 OUT.screenPos = ComputeScreenPos(OUT.positionHCS);
                 OUT.posWS = TransformObjectToWorld(IN.positionOS.xyz);
                 return OUT;
@@ -78,34 +80,34 @@ Shader "MobileSSPR/ExampleShader"
             half4 frag(Varyings IN) : SV_Target
             { 
                 //base color
-                half3 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
+                half3 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor.rgb;
 
-                //sample scene's reflection probe
-                half3 viewWS = (IN.posWS - _WorldSpaceCameraPos);
-                viewWS = normalize(viewWS);
-
-                half3 reflectDirWS = viewWS * half3(1,-1,1);//reflect at horizontal plane
-
-                //call this function in Lighting.hlsl-> half3 GlossyEnvironmentReflection(half3 reflectVector, half perceptualRoughness, half occlusion)
-                half3 reflectionProbeResult = GlossyEnvironmentReflection(reflectDirWS,_Roughness,1);               
-                half4 SSPRResult = 0;
-#if _MobileSSPR
-                //our screen space reflection
-                half2 noise = tex2D(_SSPR_UVNoiseTex, IN.uv);
+                //noise texture
+                float2 noise = SAMPLE_TEXTURE2D(_SSPR_UVNoiseTex,sampler_SSPR_UVNoiseTex, IN.uv);
                 noise = noise *2-1;
                 noise.y = -abs(noise); //hide missing data, only allow offset to valid location
                 noise.x *= 0.25;
-                
-                half2 screenUV = IN.screenPos.xy/IN.screenPos.w;
-                SSPRResult = SAMPLE_TEXTURE2D(_MobileSSPR_ColorRT,LinearClampSampler, screenUV + noise * _SSPR_NoiseIntensity); //use LinearClampSampler to make it blurry
-#endif
-                //final reflection
-                half3 finalReflection = lerp(reflectionProbeResult,SSPRResult.rgb, SSPRResult.a * _BaseColor.a);//combine reflection probe and SSPR
-                
-                //show reflection area
-                half reflectionArea = tex2D(_ReflectionAreaTex,IN.uv);
+                noise *= _SSPR_NoiseIntensity;
 
-                return half4(lerp(baseColor,finalReflection,reflectionArea),1);
+                //================================================================================================
+                //GetResultReflection from SSPR
+
+                ReflectionInput reflectionData;
+                reflectionData.posWS = IN.posWS;
+                reflectionData.screenPos = IN.screenPos;
+                reflectionData.screenSpaceNoise = noise;
+                reflectionData.roughness = _Roughness;
+                reflectionData.SSPR_Usage = _BaseColor.a;
+
+                half3 resultReflection = GetResultReflection(reflectionData);
+                //================================================================================================
+
+                //decide show reflection area
+                half reflectionArea = SAMPLE_TEXTURE2D(_ReflectionAreaTex,sampler_ReflectionAreaTex, IN.uv);
+
+                half3 finalRGB = lerp(baseColor,resultReflection,reflectionArea);
+
+                return half4(finalRGB,1);
             }
 
             ENDHLSL
