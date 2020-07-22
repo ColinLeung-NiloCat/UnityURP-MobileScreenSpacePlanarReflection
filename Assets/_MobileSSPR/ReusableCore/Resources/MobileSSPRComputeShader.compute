@@ -21,9 +21,12 @@ SamplerState LinearClampSampler;
 //common uniform input from MobileSSPRRendererFeature.cs
 float2 _RTSize;
 float _HorizontalPlaneHeightWS;
-float _FadeOutScreenBorderWidth; //compute shader can't declare half type input, so use float
+float _FadeOutScreenBorderWidthVerticle;
+float _FadeOutScreenBorderWidthHorizontal; //compute shader can't declare half type input, so use float
 float3 _CameraDirection;
-
+float _ScreenLRStretchIntensity;
+float _ScreenLRStretchThreshold;
+float4 _FinalTintColor;
 //common texture input from MobileSSPRRendererFeature.cs
 RWTexture2D<half4> ColorRT;
 Texture2D<half4> _CameraOpaqueTexture;
@@ -89,11 +92,11 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 	*/
 
 	//TODO: better fill LeftRight
-	float Threshold = 0.5;
-	float Intensity = 2.0;
+	float Threshold = _ScreenLRStretchThreshold;
+	float Intensity = _ScreenLRStretchIntensity;
 
-	float HeightStretch = abs(reflectedPosWS.y - _HorizontalPlaneHeightWS);
-	float AngleStretch = saturate(abs(_CameraDirection.y));
+	float HeightStretch = (abs(reflectedPosWS.y - _HorizontalPlaneHeightWS));
+	float AngleStretch = (-_CameraDirection.y);
 	float ScreenStretch = saturate(abs(reflectedScreenUV.x * 2 - 1) - Threshold);
 
 	reflectedScreenUV.x = reflectedScreenUV.x * 2 - 1;
@@ -113,10 +116,10 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV, float reflectedPosWSy)
 {
 	//fadeout  using vertical uv.y (only fadeout if reaching _CameraOpaqueTexture's uv border top)
-	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidth, screenUV.y);
+	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidthVerticle, screenUV.y);
 	//fadeout using horizontal uv.x
 	//TODO: better fadeout
-	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidth * abs(reflectedPosWSy * 1.0), abs(screenUV.x * 2 - 1));
+	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidthHorizontal * -reflectedPosWSy, abs(screenUV.x * 2 - 1));
 	return fadeoutAlpha;
 }
 
@@ -243,7 +246,9 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 	float2 sampleUV = sampleID.xy / _RTSize;
 	half3 sampledColor = _CameraOpaqueTexture.SampleLevel(LinearClampSampler, sampleUV, 0);
 
-	ColorRT[id.xy] = float4(sampledColor, alphaAsFloatingPoint);
+	half4 finalColor = half4(sampledColor, alphaAsFloatingPoint) * _FinalTintColor;
+	finalColor.a = saturate(finalColor.a);
+	ColorRT[id.xy] = finalColor;
 }
 
 
@@ -301,7 +306,9 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 		//we write the following data to 2 RTs:
 		//-ColorRT.rgba = current best reflection color and alpha(alpha means SSPR usage %)
 		//-PosWSyRT.r = current lowest PosyWS (concept similar to a regular depth buffer ZTest->ZWrite)
-		ColorRT[reflectedScreenID] = half4(inputPixelSceneColor,fadeoutAlpha);
+		half4 color = half4(inputPixelSceneColor,fadeoutAlpha) * _FinalTintColor;
+		color.a = saturate(color.a);
+		ColorRT[reflectedScreenID] = color;
 		PosWSyRT[reflectedScreenID] = posWS.y;
 	}
 }

@@ -15,8 +15,15 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         public bool ShouldRenderSSPR = true;
         public float HorizontalReflectionPlaneHeightWS = 0.01f; //default higher than ground a bit, to avoid ZFighting if user placed a ground plane at y=0
         [Range(0.01f, 1f)]
-        public float FadeOutScreenBorderWidth = 0.5f;
-        public Color TintColor = Color.white;
+        public float FadeOutScreenBorderWidthVerticle = 0.25f;
+        [Range(0.01f, 1f)]
+        public float FadeOutScreenBorderWidthHorizontal = 0.35f;
+        [Range(0,8f)]
+        public float ScreenLRStretchIntensity = 4;
+        [Range(-1f,1f)]
+        public float ScreenLRStretchThreshold = 0.7f;
+        [ColorUsage(true,true)]
+        public Color TintColor = new Color(0.75f,0.75f,0.75f,1);
 
         //////////////////////////////////////////////////////////////////////////////////
         [Header("Performance Settings")]
@@ -143,8 +150,14 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             {
                 cb.SetComputeVectorParam(cs, Shader.PropertyToID("_RTSize"), new Vector2(GetRTWidth(), GetRTHeight()));
                 cb.SetComputeFloatParam(cs, Shader.PropertyToID("_HorizontalPlaneHeightWS"), settings.HorizontalReflectionPlaneHeightWS);
-                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_FadeOutScreenBorderWidth"), settings.FadeOutScreenBorderWidth);
+
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_FadeOutScreenBorderWidthVerticle"), settings.FadeOutScreenBorderWidthVerticle);
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_FadeOutScreenBorderWidthHorizontal"), settings.FadeOutScreenBorderWidthHorizontal);
                 cb.SetComputeVectorParam(cs, Shader.PropertyToID("_CameraDirection"), renderingData.cameraData.camera.transform.forward);
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_ScreenLRStretchIntensity"), settings.ScreenLRStretchIntensity);
+                cb.SetComputeFloatParam(cs, Shader.PropertyToID("_ScreenLRStretchThreshold"), settings.ScreenLRStretchThreshold);
+                cb.SetComputeVectorParam(cs, Shader.PropertyToID("_FinalTintColor"), settings.TintColor);
+
 
                 if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 {
@@ -177,6 +190,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     int kernel_NonMobilePathRenderHashRT = cs.FindKernel("NonMobilePathRenderHashRT");
                     cb.SetComputeTextureParam(cs, kernel_NonMobilePathRenderHashRT, "HashRT", _SSPR_PackedDataRT_rti);
                     cb.SetComputeTextureParam(cs, kernel_NonMobilePathRenderHashRT, "_CameraDepthTexture", new RenderTargetIdentifier("_CameraDepthTexture"));
+
                     cb.DispatchCompute(cs, kernel_NonMobilePathRenderHashRT, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                     //resolve to ColorRT
