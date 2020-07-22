@@ -73,7 +73,7 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 	float4 reflectedPosCS = mul(UNITY_MATRIX_VP, float4(reflectedPosWS, 1));//posWS -> posCS
 	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
 
-	float2 reflectedScreenUV = saturate(reflectedPosNDCxy * 0.5 + 0.5); //posNDC -> screen [0,1] uv, saturate() to avoid out of bound access
+	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen [0,1] uv, don't saturate() to allow  out of bound access early exit
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	//fix left right missing geometry 
@@ -121,12 +121,12 @@ half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV, float reflect
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// kernel: NonMobileClear
+// kernel: NonMobilePathClear
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma kernel NonMobileClear
+#pragma kernel NonMobilePathClear
 
 [numthreads(NUMTHREAD_X, NUMTHREAD_Y, 1)]
-void NonMobileClear(uint3 id : SV_DispatchThreadID)
+void NonMobilePathClear(uint3 id : SV_DispatchThreadID)
 {
 	HashRT[id.xy] = MAX_UINT; //max value as clear, because we want to sort by InterlockedMin()
 	ColorRT[uint2(id.xy)] = half4(0, 0, 0, 0);
@@ -169,7 +169,7 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//write "original RT position ID.xy and alpha" as "12bit y,12bit x, 8bit alpha" hash at location "reflected RT position"
+	//write "original RT position ID.xy and alpha" as "12bit yID,12bit xID, 8bit alpha" hash at location "reflected RT position"
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	/*
 	ref: http://remi-genin.fr/blog/screen-space-plane-indexed-reflection-in-ghost-recon-wildlands/#hash-resolve-jump
@@ -182,7 +182,7 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 
 	//ghost-recon-wildlands method use 16bit y, 16bit x encode
 	//but in our implementation, 16bit is overkill because we don't need a RT that is 65536*65536
-	//so we save 8 bits for fadeout alpha info, result in:
+	//instead we save 8 bits for fadeout alpha info, result in:
 	//-first 12 bits for id.y (0~4095)
 	//-then  12 bits for id.x (0~4095)
 	//-last  8  bits for alpha (0~255)
@@ -223,7 +223,7 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 	}
 	*/
 	uint packedData = HashRT[id.xy];	
-	if (packedData == MAX_UINT)
+	if (packedData == MAX_UINT) //MAX_UINT == max uint
 	{
 		//if this location is not having any reflection data (still containing clear value, still 0 reflection write), early exit to prevent wrong RT write
 		ColorRT[id.xy] = 0;
@@ -232,7 +232,7 @@ void NonMobilePathResolveColorRT(uint3 id : SV_DispatchThreadID)
 
 	//ghost-recon-wildlands method use 16bit y, 16bit x encode
 	//but in our implementation, 16bit is overkill because we don't need a RT that is 65536*65536
-	//so we save 8 bits for fadeout alpha info, result in:
+	//instead we save 8 bits for fadeout alpha info, result in:
 	//-first 12 bits for id.y (0~4095)
 	//-then  12 bits for id.x (0~4095)
 	//-last  8  bits for alpha (0~255)
@@ -288,7 +288,7 @@ void MobilePathSinglePassColorRTDirectResolve(uint3 id : SV_DispatchThreadID)
 		return;
 	uint2 reflectedScreenID = reflectedScreenUV * _RTSize;//from screen uv[0,1] to [0,RTSize-1]
 	
-	//because writes to ColorRT RT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
+	//because writes to ColorRT are in an unknown random order(there can be >1 candidates writing to the same slot in the same dispatch call!),
 	//here we only allow "closer to horizontal reflection plane's candidate" to write to ColorRT & PosWSyRT.
 	//At the end, only the "closest to horizontal reflection plane candidate" will remain in ColorRT & PosWSyRT, which is the correct reflection data
 	if(posWS.y < PosWSyRT[reflectedScreenID])

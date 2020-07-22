@@ -22,7 +22,7 @@ MonoBehaviour:
     UseHDR: 1
     ApplyFillHoleFix: 1
     RemoveFlickerIfPlatformSupported: 1
-    EnablePerPlatformSafeGuard: 0
+    EnablePerPlatformSafeGuard: 1
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

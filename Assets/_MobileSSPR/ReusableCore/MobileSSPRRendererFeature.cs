@@ -167,11 +167,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                     //Non-Android Path (PC/console..)
                     ////////////////////////////////////////////////
 
-                    //kernel NonMobileClear
-                    int kernel_NonMobileClear = cs.FindKernel("NonMobileClear");
-                    cb.SetComputeTextureParam(cs, kernel_NonMobileClear, "HashRT", _SSPR_PackedDataRT_rti);
-                    cb.SetComputeTextureParam(cs, kernel_NonMobileClear, "ColorRT", _SSPR_ColorRT_rti);
-                    cb.DispatchCompute(cs, kernel_NonMobileClear, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
+                    //kernel NonMobilePathClear
+                    int kernel_NonMobilePathClear = cs.FindKernel("NonMobilePathClear");
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathClear, "HashRT", _SSPR_PackedDataRT_rti);
+                    cb.SetComputeTextureParam(cs, kernel_NonMobilePathClear, "ColorRT", _SSPR_ColorRT_rti);
+                    cb.DispatchCompute(cs, kernel_NonMobilePathClear, dispatchThreadGroupXCount, dispatchThreadGroupYCount, dispatchThreadGroupZCount);
 
                     //kernel NonMobilePathRenderHashRT
                     int kernel_NonMobilePathRenderHashRT = cs.FindKernel("NonMobilePathRenderHashRT");
