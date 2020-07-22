@@ -35,12 +35,12 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
         [Tooltip("can set to false for better performance, if visual quality lost is acceptable")]
         public bool ApplyFillHoleFix = true;
         [Tooltip("can set to false for better performance, if flickering is acceptable")]
-        public bool RemoveFlickerIfPlatformSupported = true;
+        public bool ShouldRemoveFlickerFinalControl = true;
 
         //////////////////////////////////////////////////////////////////////////////////
         [Header("Danger Zone")]
-        [Tooltip("If on, will produce flickering, but ensure safe rendering on android platform")]
-        public bool EnablePerPlatformSafeGuard = true;
+        [Tooltip("You should always turn this on, unless you want to debug")]
+        public bool EnablePerPlatformAutoSafeGuard = true;
     }
     public PassSettings Settings = new PassSettings();
 
@@ -79,8 +79,11 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
 
         bool ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve()
         {
-            if (settings.EnablePerPlatformSafeGuard)
+            if (settings.EnablePerPlatformAutoSafeGuard)
             {
+#if UNITY_EDITOR
+                return false; //PC / Mac must support the Non-Mobile path
+#endif
                 //force use MobilePathSinglePassColorRTDirectResolve, if RInt RT is not supported
                 if (!SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RInt))
                     return true;
@@ -97,7 +100,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             }
 
             //let user decide if we still don't know the correct answer
-            return !settings.RemoveFlickerIfPlatformSupported;
+            return !settings.ShouldRemoveFlickerFinalControl;
         }
         // This method is called before executing the render pass.
         // It can be used to configure render targets and their clear state. Also to create temporary render target textures.
