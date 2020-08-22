@@ -74,6 +74,6 @@ Implementation reference
 - https://zhuanlan.zhihu.com/p/150890059
 - https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections
 
-Big change
+Change log
 -------------------
-- 2020-08-23: add iOS/OSX support
+- 2020-08-23: add iOS/OSX support (with the help of MusouCrow)
