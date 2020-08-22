@@ -77,6 +77,8 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
+        /// <summary>
+        /// If user enabled PerPlatformAutoSafeGuard, this function will return true if we should use mobile path
         /// </summary>
         bool ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve()
         {
