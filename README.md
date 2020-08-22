@@ -60,8 +60,8 @@ It is not expected! Please report your device name in Issues, thanks!
  
  Notes
  -------------------  
-It is not safe to use InterlockedMin() and RenderTexture color format "RInt" on android compute shader(see -> https://zhuanlan.zhihu.com/p/150890059). 
-Instead, we will use RenderTexture color format RFloat / ARGBHalf to produce the same result.
+It is not safe to use InterlockedMin() and RenderTexture color format "RInt" on android/iOS compute shader(see -> https://zhuanlan.zhihu.com/p/150890059). 
+Instead, we will use RenderTexture color format RFloat / ARGBHalf to produce similar result.
  
  Editor
  -------------------
