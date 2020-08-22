@@ -24,9 +24,13 @@ float _HorizontalPlaneHeightWS;
 float _FadeOutScreenBorderWidthVerticle;
 float _FadeOutScreenBorderWidthHorizontal; //compute shader can't declare half type input, so use float
 float3 _CameraDirection;
+//we found that on metal, UNITY_MATRIX_VP is not correct, so we will pass our own VP matrix to compute shader
+//but UNITY_MATRIX_I_VP is correct, not sure why.
+float4x4 _VPMatrix; 
 float _ScreenLRStretchIntensity;
 float _ScreenLRStretchThreshold;
 float4 _FinalTintColor;
+
 //common texture input from MobileSSPRRendererFeature.cs
 RWTexture2D<half4> ColorRT;
 Texture2D<half4> _CameraOpaqueTexture;
@@ -73,7 +77,7 @@ float2 ConvertReflectedPosWSToScreenUV(float3 reflectedPosWS)
 	//find reflected posWS's new screenUV
 	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L87
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	float4 reflectedPosCS = mul(UNITY_MATRIX_VP, float4(reflectedPosWS, 1));//posWS -> posCS
+	float4 reflectedPosCS = mul(_VPMatrix, float4(reflectedPosWS, 1));//posWS -> posCS
 	float2 reflectedPosNDCxy = reflectedPosCS.xy / reflectedPosCS.w;//posCS -> posNDC
 
 	float2 reflectedScreenUV = reflectedPosNDCxy * 0.5 + 0.5; //posNDC -> screen [0,1] uv, don't saturate() to allow  out of bound access early exit
@@ -194,7 +198,11 @@ void NonMobilePathRenderHashRT(uint3 id : SV_DispatchThreadID)
 
 	uint fadeoutAlphaInt = fadeoutAlpha * 255;//8 bit
 	uint hash = id.y << 20 | id.x << 8 | fadeoutAlphaInt; //pack 3 uint into 1
+#if SHADER_API_METAL
+	//do nothing because metal will never use this kernel (NonMobile kernel)
+#else
 	InterlockedMin(HashRT[reflectedScreenID],hash); //correct sorting method, sort by id.y
+#endif
 	//HashRT[reflectedScreenID] = hash; //no sorting method, don't use it, it will produce random flickering because of unknown order write(random order)
 }
 

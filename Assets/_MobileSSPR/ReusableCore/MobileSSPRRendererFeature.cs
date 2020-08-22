@@ -77,25 +77,30 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
             return Mathf.CeilToInt(GetRTHeight() * aspect / (float)SHADER_NUMTHREAD_X) * SHADER_NUMTHREAD_X;
         }
 
+        /// </summary>
         bool ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve()
         {
             if (settings.EnablePerPlatformAutoSafeGuard)
             {
-#if UNITY_EDITOR
-                return false; //PC / Mac must support the Non-Mobile path
-#endif
-                //force use MobilePathSinglePassColorRTDirectResolve, if RInt RT is not supported
+                //if RInt RT is not supported, use mobile path
                 if (!SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RInt))
                     return true;
-#if UNITY_ANDROID
+
+                //tested Metal(even on a Mac) can't use InterlockedMin().
+                //so if metal, use mobile path
+                if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal)
+                    return true;
+#if UNITY_EDITOR
+                //PC(DirectX) can use RenderTextureFormat.RInt + InterlockedMin() without any problem, use Non-Mobile path.
+                //Non-Mobile path will NOT produce any flickering
+                if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11 || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D12)
+                    return false;
+#elif UNITY_ANDROID
                 //- samsung galaxy A70(Adreno612) will fail if use RenderTextureFormat.RInt + InterlockedMin() in compute shader
                 //- but Lenovo S5(Adreno506) is correct, WTF???
-                //because behavior is different across android devices, we assume all android are not safe to use RenderTextureFormat.RInt + InterlockedMin() in compute shader
+                //because behavior is different between android devices, we assume all android are not safe to use RenderTextureFormat.RInt + InterlockedMin() in compute shader
+                //so android always go mobile path
                 return true;
-#endif
-
-#if UNITY_IOS
-                //we don't know the answer now, need to build test
 #endif
             }
 
@@ -161,11 +166,15 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 cb.SetComputeFloatParam(cs, Shader.PropertyToID("_ScreenLRStretchThreshold"), settings.ScreenLRStretchThreshold);
                 cb.SetComputeVectorParam(cs, Shader.PropertyToID("_FinalTintColor"), settings.TintColor);
 
+                //we found that on metal, UNITY_MATRIX_VP is not correct, so we will pass our own VP matrix to compute shader
+                Camera camera = renderingData.cameraData.camera;
+                Matrix4x4 VP = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
+                cb.SetComputeMatrixParam(cs, "_VPMatrix", VP);
 
                 if (ShouldUseSinglePassUnsafeAllowFlickeringDirectResolve())
                 {
                     ////////////////////////////////////////////////
-                    //Android Path
+                    //Mobile Path (Android GLES / Metal)
                     ////////////////////////////////////////////////
 
                     //kernel MobilePathsinglePassColorRTDirectResolve
@@ -180,7 +189,7 @@ public class MobileSSPRRendererFeature : ScriptableRendererFeature
                 else
                 {
                     ////////////////////////////////////////////////
-                    //Non-Android Path (PC/console..)
+                    //Non-Mobile Path (PC/console)
                     ////////////////////////////////////////////////
 
                     //kernel NonMobilePathClear

@@ -61,5 +61,5 @@ MonoBehaviour:
     RT_height: 512
     UseHDR: 1
     ApplyFillHoleFix: 1
-    RemoveFlickerIfPlatformSupported: 1
-    EnablePerPlatformSafeGuard: 1
+    ShouldRemoveFlickerFinalControl: 1
+    EnablePerPlatformAutoSafeGuard: 1
