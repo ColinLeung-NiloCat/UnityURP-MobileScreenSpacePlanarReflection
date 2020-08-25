@@ -65,7 +65,7 @@ Instead, we will use RenderTexture color format RFloat / ARGBHalf to produce sim
  
  Editor
  -------------------
-2019.4.3f1 LTS
+2019.4.4f1 LTS
 
 Implementation reference
 -------------------
