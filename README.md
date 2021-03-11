@@ -73,6 +73,7 @@ Implementation reference
 - http://advances.realtimerendering.com/s2017/PixelProjectedReflectionsAC_v_1.92_withNotes.pdf
 - https://zhuanlan.zhihu.com/p/150890059
 - https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections
+- UE4 source - PostProcessPixelProjectedReflectionMobile.usf (UE4 4.26)
 
 Change log
 -------------------
