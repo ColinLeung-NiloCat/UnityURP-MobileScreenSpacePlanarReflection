@@ -57,6 +57,10 @@ float3 ConvertScreenIDToPosWS(uint2 id)
 	//https://github.com/Steven-Cannavan/URP_ScreenSpacePlanarReflections/blob/master/Assets/Shaders/ReflectionShader.compute#L75
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	float4 posCS = float4(screenUV * 2.0 - 1.0, inputPixelRawDepth, 1.0); //reconstruct posCS using screen [0,1] uv & rawDepth
+#if UNITY_UV_STARTS_AT_TOP
+	posCS.y = -posCS.y;
+#endif
+	
 	float4 posHWS = mul(UNITY_MATRIX_I_VP, posCS); //posCS -> posHWS
 	float3 posWS = posHWS.xyz / posHWS.w; //posHWS -> posWS
 
