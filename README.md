@@ -65,7 +65,7 @@ Instead, we will use RenderTexture color format RFloat / ARGBHalf to produce sim
  
  Editor
  -------------------
-2019.4.4f1 LTS
+2020.3.33f1 LTS
 
 Implementation reference
 -------------------
@@ -78,3 +78,4 @@ Implementation reference
 Change log
 -------------------
 - 2020-08-23: add iOS/OSX support (with the help of MusouCrow)
+- 2022-05-02: upgrade project to Unity2020.3.33f1, merged a bug fix in MobileSSPRComputeShader.compute
