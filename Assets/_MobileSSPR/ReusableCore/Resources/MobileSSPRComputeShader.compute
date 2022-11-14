@@ -127,7 +127,7 @@ half ConvertOpaqueColorRTScreenUVToFadeAlphaParam(float2 screenUV, float reflect
 	half fadeoutAlpha = smoothstep(1, 1-_FadeOutScreenBorderWidthVerticle, screenUV.y);
 	//fadeout using horizontal uv.x
 	//TODO: better fadeout
-	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidthHorizontal * -reflectedPosWSy, abs(screenUV.x * 2 - 1));
+	fadeoutAlpha *= smoothstep(1, 1 - _FadeOutScreenBorderWidthHorizontal * -(reflectedPosWSy-_HorizontalPlaneHeightWS), abs(screenUV.x * 2 - 1));
 	return fadeoutAlpha;
 }
 
